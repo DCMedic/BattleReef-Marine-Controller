@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://battlereef.local/schemas/telemetry.schema.json",
+  "title": "TelemetryPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sensor_key",
+    "timestamp",
+    "value",
+    "unit",
+    "quality",
+    "source_node"
+  ],
+  "properties": {
+    "sensor_key": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["tank_temp_main"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "value": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["F", "C", "pH", "ppt"]
+    },
+    "quality": {
+      "type": "string",
+      "enum": ["good", "warning", "bad"]
+    },
+    "source_node": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["sump_node"]
+    }
+  }
+}
