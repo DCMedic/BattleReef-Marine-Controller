@@ -35,3 +35,17 @@ CREATE INDEX IF NOT EXISTS idx_commands_target_device
 
 CREATE INDEX IF NOT EXISTS idx_commands_status
     ON commands (status);
+
+CREATE TABLE IF NOT EXISTS device_states (
+    id BIGSERIAL PRIMARY KEY,
+    device_key TEXT NOT NULL UNIQUE,
+    state_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    state_source TEXT NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_states_updated_at
+    ON device_states (updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_device_states_device_key
+    ON device_states (device_key);
