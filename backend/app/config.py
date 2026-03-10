@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     postgres_user: str = "battlereef"
     postgres_password: str = "changeme"
     database_url: str = "postgresql+psycopg://battlereef:changeme@postgres:5432/battlereef"
+    sql_echo: bool = False
 
     mqtt_host: str = "mosquitto"
     mqtt_port: int = 1883

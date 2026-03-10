@@ -7,7 +7,7 @@ settings = get_settings()
 
 engine = create_engine(
     settings.database_url,
-    echo=settings.app_debug,
+    echo=settings.sql_echo,
     future=True,
     pool_pre_ping=True,
 )
