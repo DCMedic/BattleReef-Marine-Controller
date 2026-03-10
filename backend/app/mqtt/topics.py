@@ -38,3 +38,7 @@ def outlet_command_topic(outlet_key: str) -> str:
 
 def outlet_state_topic(outlet_key: str) -> str:
     return f"{TOPIC_STATE_ROOT}/outlets/{outlet_key}"
+
+
+def device_command_topic(device_key: str) -> str:
+    return f"{TOPIC_CMD_ROOT}/{device_key}/set"

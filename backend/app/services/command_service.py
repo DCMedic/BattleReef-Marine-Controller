@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -58,3 +60,26 @@ class CommandService:
 
         record = self.create(payload=payload, status=status)
         return record, True
+
+    def list_queued(self, limit: int = 50) -> list[CommandRecord]:
+        stmt = (
+            select(CommandRecord)
+            .where(CommandRecord.status == "queued")
+            .order_by(CommandRecord.requested_at.asc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def mark_dispatched(self, record: CommandRecord) -> CommandRecord:
+        record.status = "dispatched"
+        record.acknowledged_at = datetime.now(timezone.utc)
+        self.db.commit()
+        self.db.refresh(record)
+        return record
+
+    def mark_failed(self, record: CommandRecord, error_message: str) -> CommandRecord:
+        record.status = "failed"
+        record.error_message = error_message
+        self.db.commit()
+        self.db.refresh(record)
+        return record

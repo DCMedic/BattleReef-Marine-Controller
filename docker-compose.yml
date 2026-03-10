@@ -68,6 +68,22 @@ services:
       MQTT_PORT: 1883
       MQTT_CLIENT_ID: battlereef-simulator
       PUBLISH_INTERVAL_SECONDS: 5
+    command: ["python", "/app/publish_telemetry.py"]
+    depends_on:
+      mosquitto:
+        condition: service_started
+
+  device-listener:
+    build:
+      context: .
+      dockerfile: tools/simulator/Dockerfile
+    container_name: battlereef-device-listener
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_CLIENT_ID: battlereef-device-listener
+    command: ["python", "/app/device_command_listener.py"]
     depends_on:
       mosquitto:
         condition: service_started

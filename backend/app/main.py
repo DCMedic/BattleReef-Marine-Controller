@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.db.models.command import CommandRecord  # noqa: F401
 from app.db.models.device_state import DeviceStateRecord  # noqa: F401
 from app.db.models.telemetry import TelemetryReading  # noqa: F401
+from app.services.command_dispatcher import start_command_dispatcher
 from app.services.mqtt_listener import start_mqtt_listener
 
 settings = get_settings()
@@ -36,6 +37,7 @@ app.include_router(device_states_router, prefix=settings.api_prefix)
 @app.on_event("startup")
 def startup_event() -> None:
     start_mqtt_listener()
+    start_command_dispatcher()
 
 
 @app.get("/")
