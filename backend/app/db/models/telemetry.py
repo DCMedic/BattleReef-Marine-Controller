@@ -9,10 +9,10 @@ from app.db.base import Base
 class TelemetryReading(Base):
     __tablename__ = "telemetry_readings"
 
+    reading_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True, index=True)
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     sensor_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     source_node: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    reading_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     value_double: Mapped[float] = mapped_column(Float, nullable=False)
     unit: Mapped[str] = mapped_column(String(20), nullable=False)
     quality: Mapped[str] = mapped_column(String(20), nullable=False, default="good")

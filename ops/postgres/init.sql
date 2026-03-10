@@ -1,14 +1,15 @@
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 CREATE TABLE IF NOT EXISTS telemetry_readings (
-    id BIGSERIAL PRIMARY KEY,
+    reading_time TIMESTAMPTZ NOT NULL,
+    id BIGSERIAL NOT NULL,
     sensor_key TEXT NOT NULL,
     source_node TEXT NOT NULL,
-    reading_time TIMESTAMPTZ NOT NULL,
     value_double DOUBLE PRECISION NOT NULL,
     unit TEXT NOT NULL,
     quality TEXT NOT NULL DEFAULT 'good',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (reading_time, id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_sensor_time
@@ -49,3 +50,49 @@ CREATE INDEX IF NOT EXISTS idx_device_states_updated_at
 
 CREATE INDEX IF NOT EXISTS idx_device_states_device_key
     ON device_states (device_key);
+
+DO $$
+BEGIN
+    PERFORM create_hypertable(
+        'telemetry_readings',
+        'reading_time',
+        if_not_exists => TRUE,
+        migrate_data => TRUE
+    );
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'create_hypertable skipped: %', SQLERRM;
+END
+$$;
+
+DO $$
+BEGIN
+    ALTER TABLE telemetry_readings
+        SET (
+            timescaledb.compress,
+            timescaledb.compress_segmentby = 'sensor_key',
+            timescaledb.compress_orderby = 'reading_time DESC'
+        );
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'compression settings skipped: %', SQLERRM;
+END
+$$;
+
+DO $$
+BEGIN
+    PERFORM add_compression_policy('telemetry_readings', INTERVAL '7 days', if_not_exists => TRUE);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'compression policy skipped: %', SQLERRM;
+END
+$$;
+
+DO $$
+BEGIN
+    PERFORM add_retention_policy('telemetry_readings', INTERVAL '30 days', if_not_exists => TRUE);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'retention policy skipped: %', SQLERRM;
+END
+$$;
