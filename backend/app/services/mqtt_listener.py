@@ -1,107 +1,79 @@
 import json
-import threading
-import time
-from typing import Optional
+import logging
 
 import paho.mqtt.client as mqtt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.session import SessionLocal
-from app.mqtt.topics import TOPIC_TELEMETRY_SUBSCRIBE_ALL
-from app.schemas.telemetry import TelemetryIngestRequest
 from app.services.telemetry_service import TelemetryService
+from app.services.rule_engine import RuleEngineService
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
-_mqtt_client: Optional[mqtt.Client] = None
-_listener_started = False
-_listener_lock = threading.Lock()
+MQTT_TOPIC = "reef/telemetry/#"
 
 
-def on_connect(client, userdata, flags, reason_code, properties=None):
-    if reason_code == 0:
-        print(f"[MQTT] Connected to broker at {settings.mqtt_host}:{settings.mqtt_port}")
-        client.subscribe(TOPIC_TELEMETRY_SUBSCRIBE_ALL)
-        print(f"[MQTT] Subscribed to {TOPIC_TELEMETRY_SUBSCRIBE_ALL}")
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info("[MQTT] Connected to broker")
+        client.subscribe(MQTT_TOPIC)
+        logger.info(f"[MQTT] Subscribed to topic {MQTT_TOPIC}")
     else:
-        print(f"[MQTT] Connect callback returned non-success code: {reason_code}")
-
-
-def on_disconnect(client, userdata, disconnect_flags, reason_code, properties=None):
-    if reason_code == 0:
-        print("[MQTT] Disconnected cleanly from broker")
-    else:
-        print(f"[MQTT] Unexpected disconnect from broker. reason_code={reason_code}")
+        logger.error(f"[MQTT] Connection failed with code {rc}")
 
 
 def on_message(client, userdata, msg):
-    db: Optional[Session] = None
     try:
-        payload = json.loads(msg.payload.decode("utf-8"))
+        payload = json.loads(msg.payload.decode())
+    except Exception as exc:
+        logger.error(f"[MQTT] Invalid JSON payload: {exc}")
+        return
 
-        data = TelemetryIngestRequest(
-            sensor_key=payload["sensor_key"],
-            timestamp=payload["timestamp"],
-            value=payload["value"],
-            unit=payload["unit"],
-            quality=payload.get("quality", "good"),
-            source_node=payload["source_node"],
-        )
+    db: Session = SessionLocal()
 
-        db = SessionLocal()
-        service = TelemetryService(db)
-        record = service.ingest(data)
+    try:
+        telemetry_service = TelemetryService(db)
 
-        print(
+        record = telemetry_service.ingest(payload)
+
+        logger.info(
             f"[MQTT] Ingested telemetry id={record.id} "
-            f"sensor_key={record.sensor_key} value={record.value_double} {record.unit}"
+            f"sensor_key={record.sensor_key} "
+            f"value={record.value_double} {record.unit}"
         )
+
+        if record.sensor_key == "tank_temp_main":
+            rule_engine = RuleEngineService(db)
+            result = rule_engine.evaluate_temperature_rule()
+
+            if result.get("action_taken"):
+                logger.info(
+                    f"[RULE] Temperature rule triggered "
+                    f"command_id={result['command_id']} "
+                    f"device={result['target_device']}"
+                )
+            else:
+                logger.debug("[RULE] Temperature within acceptable range")
 
     except Exception as exc:
-        print(f"[MQTT] Ingest error for topic '{msg.topic}': {exc}")
+        logger.exception(f"[MQTT] Processing error: {exc}")
 
     finally:
-        if db is not None:
-            db.close()
+        db.close()
 
 
-def _mqtt_worker():
-    global _mqtt_client
-
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=settings.mqtt_client_id)
+def start_mqtt_listener():
+    client = mqtt.Client(client_id=settings.mqtt_client_id)
 
     if settings.mqtt_username:
         client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
 
     client.on_connect = on_connect
-    client.on_disconnect = on_disconnect
     client.on_message = on_message
 
-    client.reconnect_delay_set(min_delay=2, max_delay=30)
+    client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
 
-    _mqtt_client = client
-
-    while True:
-        try:
-            print(f"[MQTT] Attempting connection to {settings.mqtt_host}:{settings.mqtt_port}")
-            client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
-            client.loop_forever()
-        except Exception as exc:
-            print(f"[MQTT] Broker connection failed: {exc}. Retrying in 5 seconds...")
-            time.sleep(5)
-
-
-def start_mqtt_listener():
-    global _listener_started
-
-    with _listener_lock:
-        if _listener_started:
-            print("[MQTT] Listener already started, skipping duplicate startup")
-            return
-
-        thread = threading.Thread(target=_mqtt_worker, name="mqtt-listener", daemon=True)
-        thread.start()
-
-        _listener_started = True
-        print("[MQTT] Listener thread started")
+    logger.info("[MQTT] Listener starting")
+    client.loop_start()
