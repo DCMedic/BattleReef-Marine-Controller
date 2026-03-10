@@ -1,42 +1,52 @@
-from datetime import datetime, timezone
-from typing import Literal
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from app.db.session import get_db
+from app.schemas.telemetry import (
+    TelemetryIngestRequest,
+    TelemetryLatestResponse,
+    TelemetryResponse,
+)
+from app.services.telemetry_service import TelemetryService
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
 
-class TelemetryIngestRequest(BaseModel):
-    sensor_key: str = Field(..., examples=["tank_temp_main"])
-    timestamp: datetime
-    value: float = Field(..., examples=[78.4])
-    unit: str = Field(..., examples=["F"])
-    quality: Literal["good", "warning", "bad"] = "good"
-    source_node: str = Field(..., examples=["sump_node"])
+@router.post("", response_model=TelemetryResponse)
+def ingest_telemetry(
+    payload: TelemetryIngestRequest,
+    db: Session = Depends(get_db),
+):
+    service = TelemetryService(db)
+    record = service.ingest(payload)
+    return TelemetryResponse(
+        id=record.id,
+        sensor_key=record.sensor_key,
+        source_node=record.source_node,
+        timestamp=record.reading_time,
+        value=record.value_double,
+        unit=record.unit,
+        quality=record.quality,
+    )
 
 
-@router.post("")
-def ingest_telemetry(payload: TelemetryIngestRequest):
-    return {
-        "accepted": True,
-        "message": "Telemetry payload accepted.",
-        "ingested_at": datetime.now(timezone.utc).isoformat(),
-        "payload": payload.model_dump(mode="json"),
-    }
-
-
-@router.get("/latest")
-def get_latest_telemetry():
-    return {
-        "items": [
-            {
-                "sensor_key": "tank_temp_main",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "value": 78.4,
-                "unit": "F",
-                "quality": "good",
-                "source_node": "sump_node",
-            }
+@router.get("/latest", response_model=TelemetryLatestResponse)
+def get_latest_telemetry(
+    db: Session = Depends(get_db),
+):
+    service = TelemetryService(db)
+    records = service.latest()
+    return TelemetryLatestResponse(
+        items=[
+            TelemetryResponse(
+                id=record.id,
+                sensor_key=record.sensor_key,
+                source_node=record.source_node,
+                timestamp=record.reading_time,
+                value=record.value_double,
+                unit=record.unit,
+                quality=record.quality,
+            )
+            for record in records
         ]
-    }
+    )

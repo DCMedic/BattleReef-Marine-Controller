@@ -1,3 +1,5 @@
+from app.db.models.telemetry import TelemetryReading
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
