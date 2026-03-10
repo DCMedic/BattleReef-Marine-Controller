@@ -9,6 +9,11 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "battlereef-device-listener")
 
 TOPIC_SUBSCRIBE = "battlereef/cmd/#"
+ACK_ROOT = "battlereef/ack"
+
+
+def ack_topic_for_device(device_key: str) -> str:
+    return f"{ACK_ROOT}/{device_key}"
 
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
@@ -24,8 +29,35 @@ def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
         print(f"[DEVICE] Received command on {msg.topic}: {json.dumps(payload)}")
+
+        command_id = payload["command_id"]
+        device_key = payload["target_device"]
+        command_payload = payload["command_payload"]
+
+        state_payload = {
+            "power": command_payload.get("power"),
+            "mode": "auto",
+            "last_command_id": command_id,
+            "applied": True,
+        }
+
+        ack_payload = {
+            "command_id": command_id,
+            "device_key": device_key,
+            "state_payload": state_payload,
+            "state_source": "device_listener",
+        }
+
+        ack_topic = ack_topic_for_device(device_key)
+        result = client.publish(ack_topic, json.dumps(ack_payload))
+
+        if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            print(f"[DEVICE] Published ACK to {ack_topic}: {json.dumps(ack_payload)}")
+        else:
+            print(f"[DEVICE] Failed to publish ACK for command_id={command_id} rc={result.rc}")
+
     except Exception as exc:
-        print(f"[DEVICE] Failed to decode message on {msg.topic}: {exc}")
+        print(f"[DEVICE] Failed to process message on {msg.topic}: {exc}")
 
 
 def main() -> None:

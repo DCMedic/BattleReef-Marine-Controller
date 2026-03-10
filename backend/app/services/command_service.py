@@ -45,6 +45,10 @@ class CommandService:
         stmt = stmt.order_by(CommandRecord.requested_at.desc()).limit(1)
         return self.db.scalar(stmt)
 
+    def get_by_id(self, command_id: int) -> CommandRecord | None:
+        stmt = select(CommandRecord).where(CommandRecord.id == command_id).limit(1)
+        return self.db.scalar(stmt)
+
     def create_if_not_duplicate(
         self,
         payload: CommandCreateRequest,
@@ -73,6 +77,16 @@ class CommandService:
     def mark_dispatched(self, record: CommandRecord) -> CommandRecord:
         record.status = "dispatched"
         record.acknowledged_at = datetime.now(timezone.utc)
+        self.db.commit()
+        self.db.refresh(record)
+        return record
+
+    def mark_completed(self, record: CommandRecord) -> CommandRecord:
+        now = datetime.now(timezone.utc)
+        if record.acknowledged_at is None:
+            record.acknowledged_at = now
+        record.completed_at = now
+        record.status = "completed"
         self.db.commit()
         self.db.refresh(record)
         return record

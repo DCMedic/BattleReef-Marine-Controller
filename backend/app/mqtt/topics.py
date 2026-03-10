@@ -17,11 +17,14 @@ TOPIC_CMD_HEATER_SET = f"{TOPIC_CMD_ROOT}/heater/set"
 TOPIC_CMD_RETURN_PUMP_SET = f"{TOPIC_CMD_ROOT}/return_pump/set"
 TOPIC_CMD_ATO_SET = f"{TOPIC_CMD_ROOT}/ato/set"
 
+TOPIC_ACK_ROOT = f"{MQTT_NAMESPACE}/ack"
+
 TOPIC_HEALTH_ROOT = f"{MQTT_NAMESPACE}/health"
 TOPIC_HEALTH_BACKEND = f"{TOPIC_HEALTH_ROOT}/backend/api"
 TOPIC_HEALTH_NODE_SUMP = f"{TOPIC_HEALTH_ROOT}/node/sump"
 
 TOPIC_TELEMETRY_SUBSCRIBE_ALL = f"{TOPIC_TELEMETRY_ROOT}/#"
+TOPIC_ACK_SUBSCRIBE_ALL = f"{TOPIC_ACK_ROOT}/#"
 
 
 def telemetry_sensor_topic(sensor_type: str) -> str:
@@ -42,3 +45,7 @@ def outlet_state_topic(outlet_key: str) -> str:
 
 def device_command_topic(device_key: str) -> str:
     return f"{TOPIC_CMD_ROOT}/{device_key}/set"
+
+
+def device_ack_topic(device_key: str) -> str:
+    return f"{TOPIC_ACK_ROOT}/{device_key}"
