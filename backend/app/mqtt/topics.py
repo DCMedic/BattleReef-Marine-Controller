@@ -1,25 +1,40 @@
-MQTT_NAMESPACE = "aquarium"
+MQTT_NAMESPACE = "battlereef"
 
-TELEMETRY_SENSORS_TEMPERATURE = f"{MQTT_NAMESPACE}/telemetry/sensors/temperature"
-TELEMETRY_SENSORS_PH = f"{MQTT_NAMESPACE}/telemetry/sensors/ph"
-TELEMETRY_SENSORS_SALINITY = f"{MQTT_NAMESPACE}/telemetry/sensors/salinity"
-TELEMETRY_SENSORS_WATER_LEVEL = f"{MQTT_NAMESPACE}/telemetry/sensors/water_level"
+TOPIC_TELEMETRY_ROOT = f"{MQTT_NAMESPACE}/telemetry"
+TOPIC_TELEMETRY_SENSORS_ROOT = f"{TOPIC_TELEMETRY_ROOT}/sensors"
+TOPIC_TELEMETRY_TEMPERATURE = f"{TOPIC_TELEMETRY_SENSORS_ROOT}/temperature"
+TOPIC_TELEMETRY_PH = f"{TOPIC_TELEMETRY_SENSORS_ROOT}/ph"
+TOPIC_TELEMETRY_SALINITY = f"{TOPIC_TELEMETRY_SENSORS_ROOT}/salinity"
+TOPIC_TELEMETRY_WATER_LEVEL = f"{TOPIC_TELEMETRY_SENSORS_ROOT}/water_level"
 
-STATE_HEATER = f"{MQTT_NAMESPACE}/state/heater"
-STATE_RETURN_PUMP = f"{MQTT_NAMESPACE}/state/return_pump"
-STATE_ATO = f"{MQTT_NAMESPACE}/state/ato"
+TOPIC_STATE_ROOT = f"{MQTT_NAMESPACE}/state"
+TOPIC_STATE_HEATER = f"{TOPIC_STATE_ROOT}/heater"
+TOPIC_STATE_RETURN_PUMP = f"{TOPIC_STATE_ROOT}/return_pump"
+TOPIC_STATE_ATO = f"{TOPIC_STATE_ROOT}/ato"
 
-CMD_HEATER_SET = f"{MQTT_NAMESPACE}/cmd/heater/set"
-CMD_RETURN_PUMP_SET = f"{MQTT_NAMESPACE}/cmd/return_pump/set"
-CMD_ATO_SET = f"{MQTT_NAMESPACE}/cmd/ato/set"
+TOPIC_CMD_ROOT = f"{MQTT_NAMESPACE}/cmd"
+TOPIC_CMD_HEATER_SET = f"{TOPIC_CMD_ROOT}/heater/set"
+TOPIC_CMD_RETURN_PUMP_SET = f"{TOPIC_CMD_ROOT}/return_pump/set"
+TOPIC_CMD_ATO_SET = f"{TOPIC_CMD_ROOT}/ato/set"
 
-HEALTH_BACKEND = f"{MQTT_NAMESPACE}/health/backend/api"
-HEALTH_NODE_SUMP = f"{MQTT_NAMESPACE}/health/node/sump"
+TOPIC_HEALTH_ROOT = f"{MQTT_NAMESPACE}/health"
+TOPIC_HEALTH_BACKEND = f"{TOPIC_HEALTH_ROOT}/backend/api"
+TOPIC_HEALTH_NODE_SUMP = f"{TOPIC_HEALTH_ROOT}/node/sump"
+
+TOPIC_TELEMETRY_SUBSCRIBE_ALL = f"{TOPIC_TELEMETRY_ROOT}/#"
+
+
+def telemetry_sensor_topic(sensor_type: str) -> str:
+    return f"{TOPIC_TELEMETRY_SENSORS_ROOT}/{sensor_type}"
+
+
+def telemetry_sensor_key_topic(sensor_key: str) -> str:
+    return f"{TOPIC_TELEMETRY_ROOT}/{sensor_key}"
 
 
 def outlet_command_topic(outlet_key: str) -> str:
-    return f"{MQTT_NAMESPACE}/cmd/outlets/{outlet_key}/set"
+    return f"{TOPIC_CMD_ROOT}/outlets/{outlet_key}/set"
 
 
 def outlet_state_topic(outlet_key: str) -> str:
-    return f"{MQTT_NAMESPACE}/state/outlets/{outlet_key}"
+    return f"{TOPIC_STATE_ROOT}/outlets/{outlet_key}"

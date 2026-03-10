@@ -57,5 +57,20 @@ services:
       mosquitto:
         condition: service_started
 
+  simulator:
+    build:
+      context: .
+      dockerfile: tools/simulator/Dockerfile
+    container_name: battlereef-simulator
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_CLIENT_ID: battlereef-simulator
+      PUBLISH_INTERVAL_SECONDS: 5
+    depends_on:
+      mosquitto:
+        condition: service_started
+
 volumes:
   battlereef_postgres_data:

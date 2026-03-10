@@ -1,0 +1,46 @@
+{
+  "temperature": {
+    "topic": "battlereef/telemetry/tank_temp_main",
+    "payload": {
+      "sensor_key": "tank_temp_main",
+      "timestamp": "2026-03-10T20:20:00Z",
+      "value": 78.5,
+      "unit": "F",
+      "quality": "good",
+      "source_node": "sump_node"
+    }
+  },
+  "ph": {
+    "topic": "battlereef/telemetry/tank_ph_main",
+    "payload": {
+      "sensor_key": "tank_ph_main",
+      "timestamp": "2026-03-10T20:20:00Z",
+      "value": 8.17,
+      "unit": "pH",
+      "quality": "good",
+      "source_node": "water_quality_node"
+    }
+  },
+  "salinity": {
+    "topic": "battlereef/telemetry/tank_salinity_main",
+    "payload": {
+      "sensor_key": "tank_salinity_main",
+      "timestamp": "2026-03-10T20:20:00Z",
+      "value": 35.1,
+      "unit": "ppt",
+      "quality": "good",
+      "source_node": "water_quality_node"
+    }
+  },
+  "water_level": {
+    "topic": "battlereef/telemetry/sump_level_main",
+    "payload": {
+      "sensor_key": "sump_level_main",
+      "timestamp": "2026-03-10T20:20:00Z",
+      "value": 9.52,
+      "unit": "in",
+      "quality": "good",
+      "source_node": "ato_node"
+    }
+  }
+}

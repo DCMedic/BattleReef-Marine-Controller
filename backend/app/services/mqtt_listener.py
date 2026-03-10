@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.session import SessionLocal
+from app.mqtt.topics import TOPIC_TELEMETRY_SUBSCRIBE_ALL
 from app.schemas.telemetry import TelemetryIngestRequest
 from app.services.telemetry_service import TelemetryService
 
@@ -21,8 +22,8 @@ _listener_lock = threading.Lock()
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
         print(f"[MQTT] Connected to broker at {settings.mqtt_host}:{settings.mqtt_port}")
-        client.subscribe("battlereef/telemetry/#")
-        print("[MQTT] Subscribed to battlereef/telemetry/#")
+        client.subscribe(TOPIC_TELEMETRY_SUBSCRIBE_ALL)
+        print(f"[MQTT] Subscribed to {TOPIC_TELEMETRY_SUBSCRIBE_ALL}")
     else:
         print(f"[MQTT] Connect callback returned non-success code: {reason_code}")
 
