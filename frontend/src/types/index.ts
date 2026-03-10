@@ -36,3 +36,18 @@ export type SystemSummaryResponse = {
   device_states: DeviceStateSummary[];
   timescale_status: TimescaleStatus;
 };
+
+export type TelemetryHistoryPoint = {
+  timestamp: string;
+  value: number;
+};
+
+export type TelemetryHistorySeries = {
+  sensor_key: string;
+  unit: string;
+  points: TelemetryHistoryPoint[];
+};
+
+export type TelemetryHistoryResponse = {
+  series: TelemetryHistorySeries[];
+};

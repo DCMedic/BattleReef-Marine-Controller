@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchSystemSummary } from "../api/queries";
+import { fetchSystemSummary, fetchTelemetryHistory } from "../api/queries";
 import { DeviceStateTile } from "../components/DeviceStateTile";
 import { MetricCard } from "../components/MetricCard";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
-import type { SensorLatestReading, SystemSummaryResponse } from "../types";
+import { TelemetryChart } from "../components/TelemetryChart";
+import type {
+  SensorLatestReading,
+  SystemSummaryResponse,
+  TelemetryHistoryResponse,
+} from "../types";
 
 function formatReading(reading: SensorLatestReading | undefined): string {
   if (!reading) return "N/A";
@@ -18,13 +23,19 @@ function formatTimestamp(reading: SensorLatestReading | undefined): string {
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<SystemSummaryResponse | null>(null);
+  const [history, setHistory] = useState<TelemetryHistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadSummary() {
+  async function loadDashboard() {
     try {
-      const data = await fetchSystemSummary();
-      setSummary(data);
+      const [summaryData, historyData] = await Promise.all([
+        fetchSystemSummary(),
+        fetchTelemetryHistory(),
+      ]);
+
+      setSummary(summaryData);
+      setHistory(historyData);
       setError(null);
     } catch (err) {
       const message =
@@ -36,8 +47,8 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    loadSummary();
-    const interval = window.setInterval(loadSummary, 5000);
+    loadDashboard();
+    const interval = window.setInterval(loadDashboard, 5000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -161,6 +172,12 @@ export default function Dashboard() {
                 value={summary.counts.device_states.toLocaleString()}
               />
             </div>
+
+            {history ? (
+              <div style={{ marginBottom: "24px" }}>
+                <TelemetryChart history={history} />
+              </div>
+            ) : null}
 
             <div
               style={{
