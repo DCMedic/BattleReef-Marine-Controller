@@ -51,3 +51,27 @@ export type TelemetryHistorySeries = {
 export type TelemetryHistoryResponse = {
   series: TelemetryHistorySeries[];
 };
+
+export type CommandResponse = {
+  id: number;
+  requested_at: string;
+  requested_by: string;
+  target_device: string;
+  command_type: string;
+  command_payload: Record<string, unknown>;
+  status: string;
+  acknowledged_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+};
+
+export type CommandListResponse = {
+  items: CommandResponse[];
+};
+
+export type CommandCreateRequest = {
+  requested_by: string;
+  target_device: string;
+  command_type: string;
+  command_payload: Record<string, unknown>;
+};

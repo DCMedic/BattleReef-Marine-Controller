@@ -16,6 +16,32 @@ def ack_topic_for_device(device_key: str) -> str:
     return f"{ACK_ROOT}/{device_key}"
 
 
+def build_state_payload(command_type: str, command_payload: dict, command_id: int) -> dict:
+    state_payload: dict = {
+        "mode": command_payload.get("mode", "manual"),
+        "applied": True,
+        "last_command_id": command_id,
+    }
+
+    if command_type == "set_power":
+        state_payload["power"] = command_payload.get("power")
+
+    elif command_type == "set_intensity":
+        state_payload["intensity"] = command_payload.get("intensity")
+        if "power" in command_payload:
+            state_payload["power"] = command_payload.get("power")
+
+    elif command_type == "trigger_feed":
+        state_payload["last_feed_seconds"] = command_payload.get("duration_seconds")
+        state_payload["last_feed_at"] = command_payload.get("requested_at")
+
+    else:
+        state_payload["raw_command_type"] = command_type
+        state_payload["raw_command_payload"] = command_payload
+
+    return state_payload
+
+
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
         print(f"[DEVICE] Connected to MQTT broker at {MQTT_HOST}:{MQTT_PORT}")
@@ -32,14 +58,14 @@ def on_message(client, userdata, msg):
 
         command_id = payload["command_id"]
         device_key = payload["target_device"]
+        command_type = payload["command_type"]
         command_payload = payload["command_payload"]
 
-        state_payload = {
-            "power": command_payload.get("power"),
-            "mode": "auto",
-            "last_command_id": command_id,
-            "applied": True,
-        }
+        state_payload = build_state_payload(
+            command_type=command_type,
+            command_payload=command_payload,
+            command_id=command_id,
+        )
 
         ack_payload = {
             "command_id": command_id,

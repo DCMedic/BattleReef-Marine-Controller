@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchSystemSummary, fetchTelemetryHistory } from "../api/queries";
+import {
+  fetchRecentCommands,
+  fetchSystemSummary,
+  fetchTelemetryHistory,
+} from "../api/queries";
 import { DeviceStateTile } from "../components/DeviceStateTile";
+import { ManualControlPanel } from "../components/ManualControlPanel";
 import { MetricCard } from "../components/MetricCard";
+import { RecentCommandsTable } from "../components/RecentCommandsTable";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
-import { TelemetryChart } from "../components/TelemetryChart";
+import { TelemetryMiniChart } from "../components/TelemetryMiniChart";
 import type {
+  CommandListResponse,
+  CommandResponse,
   SensorLatestReading,
   SystemSummaryResponse,
   TelemetryHistoryResponse,
+  TelemetryHistorySeries,
 } from "../types";
 
 function formatReading(reading: SensorLatestReading | undefined): string {
@@ -24,18 +33,21 @@ function formatTimestamp(reading: SensorLatestReading | undefined): string {
 export default function Dashboard() {
   const [summary, setSummary] = useState<SystemSummaryResponse | null>(null);
   const [history, setHistory] = useState<TelemetryHistoryResponse | null>(null);
+  const [commands, setCommands] = useState<CommandListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function loadDashboard() {
     try {
-      const [summaryData, historyData] = await Promise.all([
+      const [summaryData, historyData, commandData] = await Promise.all([
         fetchSystemSummary(),
         fetchTelemetryHistory(),
+        fetchRecentCommands(),
       ]);
 
       setSummary(summaryData);
       setHistory(historyData);
+      setCommands(commandData);
       setError(null);
     } catch (err) {
       const message =
@@ -60,10 +72,30 @@ export default function Dashboard() {
     return map;
   }, [summary]);
 
+  const historyByKey = useMemo(() => {
+    const map = new Map<string, TelemetryHistorySeries>();
+    for (const series of history?.series ?? []) {
+      map.set(series.sensor_key, series);
+    }
+    return map;
+  }, [history]);
+
   const temp = readingsByKey.get("tank_temp_main");
   const ph = readingsByKey.get("tank_ph_main");
   const salinity = readingsByKey.get("tank_salinity_main");
   const level = readingsByKey.get("sump_level_main");
+
+  function handleCommandSent(command: CommandResponse) {
+    setCommands((prev) => {
+      const existing = prev?.items ?? [];
+      const nextItems = [command, ...existing].slice(0, 10);
+      return { items: nextItems };
+    });
+
+    window.setTimeout(() => {
+      void loadDashboard();
+    }, 1000);
+  }
 
   return (
     <div
@@ -173,11 +205,36 @@ export default function Dashboard() {
               />
             </div>
 
-            {history ? (
-              <div style={{ marginBottom: "24px" }}>
-                <TelemetryChart history={history} />
-              </div>
-            ) : null}
+            <ManualControlPanel
+              deviceStates={summary.device_states}
+              onCommandSent={handleCommandSent}
+            />
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: "16px",
+                marginBottom: "24px",
+              }}
+            >
+              <TelemetryMiniChart
+                title="Temperature Trend"
+                series={historyByKey.get("tank_temp_main") ?? null}
+              />
+              <TelemetryMiniChart
+                title="pH Trend"
+                series={historyByKey.get("tank_ph_main") ?? null}
+              />
+              <TelemetryMiniChart
+                title="Salinity Trend"
+                series={historyByKey.get("tank_salinity_main") ?? null}
+              />
+              <TelemetryMiniChart
+                title="Sump Level Trend"
+                series={historyByKey.get("sump_level_main") ?? null}
+              />
+            </div>
 
             <div
               style={{
@@ -233,6 +290,10 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <RecentCommandsTable items={commands?.items ?? []} />
             </div>
 
             <div style={{ marginBottom: "12px" }}>
