@@ -91,3 +91,17 @@ export type ScheduleResponse = {
 export type ScheduleListResponse = {
   items: ScheduleResponse[];
 };
+
+export type ScheduleCreateRequest = {
+  device_key: string;
+  schedule_type: string;
+  name: string;
+  enabled: boolean;
+  config_payload: Record<string, unknown>;
+};
+
+export type ScheduleUpdateRequest = {
+  name?: string;
+  enabled?: boolean;
+  config_payload?: Record<string, unknown>;
+};

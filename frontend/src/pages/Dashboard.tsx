@@ -10,7 +10,7 @@ import { ManualControlPanel } from "../components/ManualControlPanel";
 import { MetricCard } from "../components/MetricCard";
 import { RecentCommandsTable } from "../components/RecentCommandsTable";
 import { ScheduleAutomationPanel } from "../components/ScheduleAutomationPanel";
-import { ScheduleListPanel } from "../components/ScheduleListPanel";
+import { ScheduleManagerPanel } from "../components/ScheduleManagerPanel";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
 import { TelemetryMiniChart } from "../components/TelemetryMiniChart";
 import type {
@@ -62,7 +62,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    loadDashboard();
+    void loadDashboard();
     const interval = window.setInterval(loadDashboard, 5000);
     return () => window.clearInterval(interval);
   }, []);
@@ -109,6 +109,7 @@ export default function Dashboard() {
   function handleScheduleEvaluated() {
     window.setTimeout(() => {
       void loadDashboard();
+      setScheduleRefreshToken((prev) => prev + 1);
     }, 1000);
   }
 
@@ -221,7 +222,7 @@ export default function Dashboard() {
             </div>
 
             <ScheduleAutomationPanel onScheduleEvaluated={handleScheduleEvaluated} />
-            <ScheduleListPanel refreshToken={scheduleRefreshToken} />
+            <ScheduleManagerPanel refreshToken={scheduleRefreshToken} />
 
             <ManualControlPanel
               deviceStates={summary.device_states}

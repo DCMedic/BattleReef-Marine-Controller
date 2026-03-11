@@ -4,7 +4,10 @@ import type {
   CommandListResponse,
   CommandResponse,
   DeviceStateSummary,
+  ScheduleCreateRequest,
   ScheduleListResponse,
+  ScheduleResponse,
+  ScheduleUpdateRequest,
   SystemSummaryResponse,
   TelemetryHistoryResponse,
 } from "../types";
@@ -28,7 +31,23 @@ export async function fetchSchedules(): Promise<ScheduleListResponse> {
 }
 
 export async function seedDefaultSchedules(): Promise<ScheduleListResponse> {
-  return apiPostEmpty("/schedules/seed-defaults");
+  return apiPostEmpty<ScheduleListResponse>("/schedules/seed-defaults");
+}
+
+export async function createSchedule(
+  payload: ScheduleCreateRequest
+): Promise<ScheduleResponse> {
+  return apiPost<ScheduleResponse, ScheduleCreateRequest>("/schedules", payload);
+}
+
+export async function updateSchedule(
+  scheduleId: number,
+  payload: ScheduleUpdateRequest
+): Promise<ScheduleResponse> {
+  return apiPost<ScheduleResponse, ScheduleUpdateRequest>(
+    `/schedules/${scheduleId}`,
+    payload
+  );
 }
 
 export async function createManualCommand(
