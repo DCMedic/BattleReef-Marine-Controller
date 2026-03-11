@@ -18,6 +18,7 @@ export type SensorLatestReading = {
 };
 
 export type DeviceStateSummary = {
+  id?: number;
   device_key: string;
   state_payload: Record<string, unknown>;
   state_source: string;
@@ -74,4 +75,19 @@ export type CommandCreateRequest = {
   target_device: string;
   command_type: string;
   command_payload: Record<string, unknown>;
+};
+
+export type ScheduleResponse = {
+  id: number;
+  device_key: string;
+  schedule_type: string;
+  name: string;
+  enabled: boolean;
+  config_payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScheduleListResponse = {
+  items: ScheduleResponse[];
 };

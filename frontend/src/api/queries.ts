@@ -4,6 +4,7 @@ import type {
   CommandListResponse,
   CommandResponse,
   DeviceStateSummary,
+  ScheduleListResponse,
   SystemSummaryResponse,
   TelemetryHistoryResponse,
 } from "../types";
@@ -20,6 +21,14 @@ export async function fetchTelemetryHistory(): Promise<TelemetryHistoryResponse>
 
 export async function fetchRecentCommands(): Promise<CommandListResponse> {
   return apiGet<CommandListResponse>("/commands?limit=10");
+}
+
+export async function fetchSchedules(): Promise<ScheduleListResponse> {
+  return apiGet<ScheduleListResponse>("/schedules?limit=100");
+}
+
+export async function seedDefaultSchedules(): Promise<ScheduleListResponse> {
+  return apiPostEmpty("/schedules/seed-defaults");
 }
 
 export async function createManualCommand(

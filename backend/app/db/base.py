@@ -1,5 +1,8 @@
-from sqlalchemy.orm import DeclarativeBase
+from app.db.session import Base
 
+import app.db.models.command
+import app.db.models.device_state
+import app.db.models.schedule
+import app.db.models.telemetry
 
-class Base(DeclarativeBase):
-    pass
+__all__ = ["Base"]

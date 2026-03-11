@@ -10,6 +10,7 @@ import { ManualControlPanel } from "../components/ManualControlPanel";
 import { MetricCard } from "../components/MetricCard";
 import { RecentCommandsTable } from "../components/RecentCommandsTable";
 import { ScheduleAutomationPanel } from "../components/ScheduleAutomationPanel";
+import { ScheduleListPanel } from "../components/ScheduleListPanel";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
 import { TelemetryMiniChart } from "../components/TelemetryMiniChart";
 import type {
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const [commands, setCommands] = useState<CommandListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scheduleRefreshToken, setScheduleRefreshToken] = useState(0);
 
   async function loadDashboard() {
     try {
@@ -137,7 +139,7 @@ export default function Dashboard() {
               fontSize: "1rem",
             }}
           >
-            Live telemetry, command lifecycle, device state, and scheduled automation.
+            Live telemetry, command lifecycle, device state, and persistent schedule configuration.
           </p>
         </div>
 
@@ -219,6 +221,7 @@ export default function Dashboard() {
             </div>
 
             <ScheduleAutomationPanel onScheduleEvaluated={handleScheduleEvaluated} />
+            <ScheduleListPanel refreshToken={scheduleRefreshToken} />
 
             <ManualControlPanel
               deviceStates={summary.device_states}

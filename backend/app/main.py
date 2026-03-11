@@ -4,13 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.commands import router as commands_router
 from app.api.routes.device_states import router as device_states_router
 from app.api.routes.health import router as health_router
+from app.api.routes.schedules import router as schedules_router
 from app.api.routes.system import router as system_router
 from app.api.routes.telemetry import router as telemetry_router
 from app.config import get_settings
-from app.db.models.command import CommandRecord  # noqa: F401
-from app.db.models.device_state import DeviceStateRecord  # noqa: F401
-from app.db.models.telemetry import TelemetryReading  # noqa: F401
-from app.services.command_dispatcher import start_command_dispatcher
+from app.db.base import Base
+from app.db.session import engine
 from app.services.mqtt_listener import start_mqtt_listener
 
 settings = get_settings()
@@ -34,16 +33,17 @@ app.include_router(telemetry_router, prefix=settings.api_prefix)
 app.include_router(commands_router, prefix=settings.api_prefix)
 app.include_router(device_states_router, prefix=settings.api_prefix)
 app.include_router(system_router, prefix=settings.api_prefix)
+app.include_router(schedules_router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")
 def startup_event() -> None:
+    Base.metadata.create_all(bind=engine)
     start_mqtt_listener()
-    start_command_dispatcher()
 
 
 @app.get("/")
-def root() -> dict[str, str]:
+def root():
     return {
         "name": settings.app_name,
         "environment": settings.app_env,

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.schemas.command import CommandCreateRequest
 from app.services.command_service import CommandService
 from app.services.device_state_service import DeviceStateService
+from app.services.schedule_service import ScheduleService
 from app.services.telemetry_service import TelemetryService
 
 
@@ -14,6 +15,7 @@ class RuleEngineService:
         self.telemetry_service = TelemetryService(db)
         self.command_service = CommandService(db)
         self.device_state_service = DeviceStateService(db)
+        self.schedule_service = ScheduleService(db)
 
     def _device_is_manual(self, device_key: str) -> bool:
         return self.device_state_service.get_mode(device_key) == "manual"
@@ -123,22 +125,25 @@ class RuleEngineService:
 
         results: list[dict] = []
 
-        lights_should_be_on = 14 <= hour < 23
-        feeder_should_feed = hour in {14, 20}
-        wavemaker_day_mode = 12 <= hour < 23
+        lighting_schedules = self.schedule_service.list_enabled_by_type("lighting")
+        feeding_schedules = self.schedule_service.list_enabled_by_type("feeding")
+        flow_schedules = self.schedule_service.list_enabled_by_type("flow")
 
-        if self._device_is_manual("lights_main"):
-            results.append(
-                {
-                    "device": "lights_main",
-                    "action_taken": False,
-                    "reason": "device_in_manual_mode",
-                }
-            )
-        else:
+        for schedule in lighting_schedules:
+            device_key = schedule.device_key
+            if self._device_is_manual(device_key):
+                results.append(
+                    {"device": device_key, "action_taken": False, "reason": "device_in_manual_mode"}
+                )
+                continue
+
+            start_hour = int(schedule.config_payload.get("start_hour_utc", 14))
+            end_hour = int(schedule.config_payload.get("end_hour_utc", 23))
+            lights_should_be_on = start_hour <= hour < end_hour
+
             results.append(
                 self._create_auto_command_if_needed(
-                    target_device="lights_main",
+                    target_device=device_key,
                     command_type="set_power",
                     command_payload={
                         "power": lights_should_be_on,
@@ -146,69 +151,79 @@ class RuleEngineService:
                         "reason": "schedule_lighting_window",
                         "scheduled_state": "on" if lights_should_be_on else "off",
                         "schedule_hour_utc": hour,
+                        "schedule_name": schedule.name,
                     },
                     requested_by="rule_engine.schedule.lights",
                 )
             )
 
-        if self._device_is_manual("feeder_main"):
-            results.append(
-                {
-                    "device": "feeder_main",
-                    "action_taken": False,
-                    "reason": "device_in_manual_mode",
-                }
-            )
-        elif feeder_should_feed:
-            results.append(
-                self._create_auto_command_if_needed(
-                    target_device="feeder_main",
-                    command_type="trigger_feed",
-                    command_payload={
-                        "duration_seconds": 5,
-                        "mode": "auto",
-                        "reason": "scheduled_feeding_window",
-                        "schedule_hour_utc": hour,
-                        "requested_at": now.isoformat(),
-                    },
-                    requested_by="rule_engine.schedule.feeder",
-                )
-            )
-        else:
-            results.append(
-                {
-                    "device": "feeder_main",
-                    "action_taken": False,
-                    "reason": "outside_feeding_window",
-                }
-            )
-
-        desired_intensity = "high" if wavemaker_day_mode else "low"
-
-        for device_key in ["wavemaker_left", "wavemaker_right"]:
+        for schedule in feeding_schedules:
+            device_key = schedule.device_key
             if self._device_is_manual(device_key):
+                results.append(
+                    {"device": device_key, "action_taken": False, "reason": "device_in_manual_mode"}
+                )
+                continue
+
+            scheduled_hour = int(schedule.config_payload.get("hour_utc", -1))
+            duration_seconds = int(schedule.config_payload.get("duration_seconds", 5))
+
+            if scheduled_hour == hour:
+                results.append(
+                    self._create_auto_command_if_needed(
+                        target_device=device_key,
+                        command_type="trigger_feed",
+                        command_payload={
+                            "duration_seconds": duration_seconds,
+                            "mode": "auto",
+                            "reason": "scheduled_feeding_window",
+                            "schedule_hour_utc": hour,
+                            "schedule_name": schedule.name,
+                            "requested_at": now.isoformat(),
+                        },
+                        requested_by="rule_engine.schedule.feeder",
+                    )
+                )
+            else:
                 results.append(
                     {
                         "device": device_key,
                         "action_taken": False,
-                        "reason": "device_in_manual_mode",
+                        "reason": "outside_feeding_window",
+                        "schedule_name": schedule.name,
                     }
                 )
-            else:
+
+        for schedule in flow_schedules:
+            device_key = schedule.device_key
+            if self._device_is_manual(device_key):
                 results.append(
-                    self._create_auto_command_if_needed(
-                        target_device=device_key,
-                        command_type="set_intensity",
-                        command_payload={
-                            "power": True,
-                            "intensity": desired_intensity,
-                            "mode": "auto",
-                            "reason": "scheduled_flow_profile",
-                            "schedule_hour_utc": hour,
-                        },
-                        requested_by="rule_engine.schedule.wavemakers",
-                    )
+                    {"device": device_key, "action_taken": False, "reason": "device_in_manual_mode"}
                 )
+                continue
+
+            day_start = int(schedule.config_payload.get("day_start_hour_utc", 12))
+            day_end = int(schedule.config_payload.get("day_end_hour_utc", 23))
+            day_intensity = str(schedule.config_payload.get("day_intensity", "high"))
+            night_intensity = str(schedule.config_payload.get("night_intensity", "low"))
+
+            desired_intensity = day_intensity if day_start <= hour < day_end else night_intensity
+
+            results.append(
+                self._create_auto_command_if_needed(
+                    target_device=device_key,
+                    command_type="set_intensity",
+                    command_payload={
+                        "power": True,
+                        "intensity": desired_intensity,
+                        "mode": "auto",
+                        "reason": "scheduled_flow_profile",
+                        "schedule_hour_utc": hour,
+                        "schedule_name": schedule.name,
+                    },
+                    requested_by="rule_engine.schedule.wavemakers",
+                )
+            )
 
         return {
             "evaluated_at": now.isoformat(),
