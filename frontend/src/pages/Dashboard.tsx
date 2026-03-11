@@ -13,6 +13,7 @@ import { ScheduleAutomationPanel } from "../components/ScheduleAutomationPanel";
 import { ScheduleManagerPanel } from "../components/ScheduleManagerPanel";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
 import { TelemetryMiniChart } from "../components/TelemetryMiniChart";
+import { WeeklyScheduleTimeline } from "../components/WeeklyScheduleTimeline";
 import type {
   CommandListResponse,
   CommandResponse,
@@ -222,6 +223,7 @@ export default function Dashboard() {
             </div>
 
             <ScheduleAutomationPanel onScheduleEvaluated={handleScheduleEvaluated} />
+            <WeeklyScheduleTimeline refreshToken={scheduleRefreshToken} />
             <ScheduleManagerPanel refreshToken={scheduleRefreshToken} />
 
             <ManualControlPanel
