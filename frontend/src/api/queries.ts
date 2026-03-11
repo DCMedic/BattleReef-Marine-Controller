@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostEmpty } from "./client";
+import { apiGet, apiPost, apiPostEmpty, apiPut } from "./client";
 import type {
   CommandCreateRequest,
   CommandListResponse,
@@ -44,7 +44,7 @@ export async function updateSchedule(
   scheduleId: number,
   payload: ScheduleUpdateRequest
 ): Promise<ScheduleResponse> {
-  return apiPost<ScheduleResponse, ScheduleUpdateRequest>(
+  return apiPut<ScheduleResponse, ScheduleUpdateRequest>(
     `/schedules/${scheduleId}`,
     payload
   );

@@ -1,77 +1,55 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") || "http://127.0.0.1:8000/api/v1";
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
-
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      method: "GET",
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown network error";
-    throw new Error(`Network request failed for ${url}: ${message}`);
-  }
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API GET ${url} failed: ${response.status} ${text}`);
+    throw new Error(`API ${init?.method ?? "GET"} ${path} failed: ${response.status} ${text}`);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function apiGet<T>(path: string): Promise<T> {
+  return request<T>(path, {
+    method: "GET",
+  });
 }
 
 export async function apiPost<TResponse, TBody>(
   path: string,
   body: TBody
 ): Promise<TResponse> {
-  const url = `${API_BASE_URL}${path}`;
+  return request<TResponse>(path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
 
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+export async function apiPut<TResponse, TBody>(
+  path: string,
+  body: TBody
+): Promise<TResponse> {
+    return request<TResponse>(path, {
+      method: "PUT",
       body: JSON.stringify(body),
     });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown network error";
-    throw new Error(`Network request failed for ${url}: ${message}`);
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`API POST ${url} failed: ${response.status} ${text}`);
-  }
-
-  return response.json() as Promise<TResponse>;
 }
 
 export async function apiPostEmpty<TResponse>(path: string): Promise<TResponse> {
-  const url = `${API_BASE_URL}${path}`;
-
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      method: "POST",
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown network error";
-    throw new Error(`Network request failed for ${url}: ${message}`);
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`API POST ${url} failed: ${response.status} ${text}`);
-  }
-
-  return response.json() as Promise<TResponse>;
+  return request<TResponse>(path, {
+    method: "POST",
+  });
 }
