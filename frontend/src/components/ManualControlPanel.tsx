@@ -11,23 +11,24 @@ type ManualControlPanelProps = {
 
 type DeviceStatePayload = Record<string, unknown> | undefined;
 
-type PowerControlCardProps = {
+type ModePowerControlCardProps = {
   title: string;
   deviceKey: string;
   description: string;
   statePayload?: DeviceStatePayload;
-  allowModeToggle?: boolean;
-  onSetAuto?: () => Promise<void>;
-  onSetManual?: () => Promise<void>;
+  onSetAuto: () => Promise<void>;
+  onSetManual: () => Promise<void>;
   onPowerOn: () => Promise<void>;
   onPowerOff: () => Promise<void>;
 };
 
-type WavemakerControlCardProps = {
+type ModeWavemakerControlCardProps = {
   title: string;
   deviceKey: string;
   description: string;
   statePayload?: DeviceStatePayload;
+  onSetAuto: () => Promise<void>;
+  onSetManual: () => Promise<void>;
   onPowerOn: () => Promise<void>;
   onPowerOff: () => Promise<void>;
   onLow: () => Promise<void>;
@@ -35,11 +36,13 @@ type WavemakerControlCardProps = {
   onHigh: () => Promise<void>;
 };
 
-type FeederControlCardProps = {
+type ModeFeederControlCardProps = {
   title: string;
   deviceKey: string;
   description: string;
   statePayload?: DeviceStatePayload;
+  onSetAuto: () => Promise<void>;
+  onSetManual: () => Promise<void>;
   onFeed5: () => Promise<void>;
   onFeed10: () => Promise<void>;
 };
@@ -112,19 +115,17 @@ function PanelMessage({ message }: { message: string }) {
   );
 }
 
-function PowerControlCard({
+function ModePowerControlCard({
   title,
   deviceKey,
   description,
   statePayload,
-  allowModeToggle = false,
   onSetAuto,
   onSetManual,
   onPowerOn,
   onPowerOff,
-}: PowerControlCardProps) {
+}: ModePowerControlCardProps) {
   const { busy, message, runAction } = useActionRunner();
-  const currentMode = formatText(statePayload?.mode, "auto");
 
   return (
     <div style={cardStyle}>
@@ -132,31 +133,27 @@ function PowerControlCard({
       <div style={descriptionStyle}>{description}</div>
 
       <StatusRow label="Power" value={formatBoolean(statePayload?.power)} />
-      <StatusRow label="Mode" value={currentMode} />
+      <StatusRow label="Mode" value={formatText(statePayload?.mode, "auto")} />
 
-      {allowModeToggle ? (
-        <div style={buttonRowStyle}>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSetAuto && runAction(onSetAuto, `${deviceKey} set to auto mode.`)}
-            style={buttonStyle}
-          >
-            Set Auto
-          </button>
+      <div style={buttonRowStyle}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetAuto, `${deviceKey} set to auto mode.`)}
+          style={buttonStyle}
+        >
+          Set Auto
+        </button>
 
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              onSetManual && runAction(onSetManual, `${deviceKey} set to manual mode.`)
-            }
-            style={buttonStyle}
-          >
-            Set Manual
-          </button>
-        </div>
-      ) : null}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetManual, `${deviceKey} set to manual mode.`)}
+          style={buttonStyle}
+        >
+          Set Manual
+        </button>
+      </div>
 
       <div style={buttonRowStyle}>
         <button
@@ -183,17 +180,19 @@ function PowerControlCard({
   );
 }
 
-function WavemakerControlCard({
+function ModeWavemakerControlCard({
   title,
   deviceKey,
   description,
   statePayload,
+  onSetAuto,
+  onSetManual,
   onPowerOn,
   onPowerOff,
   onLow,
   onMedium,
   onHigh,
-}: WavemakerControlCardProps) {
+}: ModeWavemakerControlCardProps) {
   const { busy, message, runAction } = useActionRunner();
 
   return (
@@ -203,7 +202,27 @@ function WavemakerControlCard({
 
       <StatusRow label="Power" value={formatBoolean(statePayload?.power)} />
       <StatusRow label="Intensity" value={formatText(statePayload?.intensity)} />
-      <StatusRow label="Mode" value={formatText(statePayload?.mode)} />
+      <StatusRow label="Mode" value={formatText(statePayload?.mode, "auto")} />
+
+      <div style={buttonRowStyle}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetAuto, `${deviceKey} set to auto mode.`)}
+          style={buttonStyle}
+        >
+          Set Auto
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetManual, `${deviceKey} set to manual mode.`)}
+          style={buttonStyle}
+        >
+          Set Manual
+        </button>
+      </div>
 
       <div style={buttonRowStyle}>
         <button
@@ -259,14 +278,16 @@ function WavemakerControlCard({
   );
 }
 
-function FeederControlCard({
+function ModeFeederControlCard({
   title,
   deviceKey,
   description,
   statePayload,
+  onSetAuto,
+  onSetManual,
   onFeed5,
   onFeed10,
-}: FeederControlCardProps) {
+}: ModeFeederControlCardProps) {
   const { busy, message, runAction } = useActionRunner();
 
   return (
@@ -282,11 +303,31 @@ function FeederControlCard({
             : "Never"
         }
       />
-      <StatusRow label="Mode" value={formatText(statePayload?.mode)} />
+      <StatusRow label="Mode" value={formatText(statePayload?.mode, "auto")} />
       <StatusRow
         label="Last Feed At"
         value={formatText(statePayload?.last_feed_at, "Unknown")}
       />
+
+      <div style={buttonRowStyle}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetAuto, `${deviceKey} set to auto mode.`)}
+          style={buttonStyle}
+        >
+          Set Auto
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => runAction(onSetManual, `${deviceKey} set to manual mode.`)}
+          style={buttonStyle}
+        >
+          Set Manual
+        </button>
+      </div>
 
       <div style={buttonRowStyle}>
         <button
@@ -447,23 +488,24 @@ export function ManualControlPanel({
           marginBottom: "24px",
         }}
       >
-        <PowerControlCard
+        <ModePowerControlCard
           title="Heater"
           deviceKey="heater_main"
           description="Primary heater with auto/manual arbitration."
           statePayload={deviceStateMap.get("heater_main")?.state_payload}
-          allowModeToggle={true}
           onSetAuto={() => changeDeviceMode("heater_main", "auto")}
           onSetManual={() => changeDeviceMode("heater_main", "manual")}
           onPowerOn={() => sendPowerCommand("heater_main", true, "manual_heater_on")}
           onPowerOff={() => sendPowerCommand("heater_main", false, "manual_heater_off")}
         />
 
-        <PowerControlCard
+        <ModePowerControlCard
           title="Main Return Pump"
           deviceKey="return_pump_main"
-          description="Manual power control for the primary return pump."
+          description="Primary return pump with auto/manual arbitration."
           statePayload={deviceStateMap.get("return_pump_main")?.state_payload}
+          onSetAuto={() => changeDeviceMode("return_pump_main", "auto")}
+          onSetManual={() => changeDeviceMode("return_pump_main", "manual")}
           onPowerOn={() =>
             sendPowerCommand("return_pump_main", true, "manual_return_pump_on")
           }
@@ -472,29 +514,35 @@ export function ManualControlPanel({
           }
         />
 
-        <PowerControlCard
+        <ModePowerControlCard
           title="Lights"
           deviceKey="lights_main"
-          description="Manual power control for the lighting system."
+          description="Lighting system with auto/manual arbitration."
           statePayload={deviceStateMap.get("lights_main")?.state_payload}
+          onSetAuto={() => changeDeviceMode("lights_main", "auto")}
+          onSetManual={() => changeDeviceMode("lights_main", "manual")}
           onPowerOn={() => sendPowerCommand("lights_main", true, "manual_lights_on")}
           onPowerOff={() => sendPowerCommand("lights_main", false, "manual_lights_off")}
         />
 
-        <FeederControlCard
+        <ModeFeederControlCard
           title="Automatic Fish Feeder"
           deviceKey="feeder_main"
-          description="Trigger a manual feeding cycle for the automatic feeder."
+          description="Manual and scheduled feeding mode control."
           statePayload={deviceStateMap.get("feeder_main")?.state_payload}
+          onSetAuto={() => changeDeviceMode("feeder_main", "auto")}
+          onSetManual={() => changeDeviceMode("feeder_main", "manual")}
           onFeed5={() => sendFeedCommand("feeder_main", 5, "manual_feed_5_seconds")}
           onFeed10={() => sendFeedCommand("feeder_main", 10, "manual_feed_10_seconds")}
         />
 
-        <WavemakerControlCard
+        <ModeWavemakerControlCard
           title="Wavemaker Left"
           deviceKey="wavemaker_left"
-          description="Manual power and intensity control for the left wavemaker."
+          description="Left wavemaker with auto/manual arbitration."
           statePayload={deviceStateMap.get("wavemaker_left")?.state_payload}
+          onSetAuto={() => changeDeviceMode("wavemaker_left", "auto")}
+          onSetManual={() => changeDeviceMode("wavemaker_left", "manual")}
           onPowerOn={() => sendPowerCommand("wavemaker_left", true, "manual_wavemaker_left_on")}
           onPowerOff={() =>
             sendPowerCommand("wavemaker_left", false, "manual_wavemaker_left_off")
@@ -508,11 +556,13 @@ export function ManualControlPanel({
           }
         />
 
-        <WavemakerControlCard
+        <ModeWavemakerControlCard
           title="Wavemaker Right"
           deviceKey="wavemaker_right"
-          description="Manual power and intensity control for the right wavemaker."
+          description="Right wavemaker with auto/manual arbitration."
           statePayload={deviceStateMap.get("wavemaker_right")?.state_payload}
+          onSetAuto={() => changeDeviceMode("wavemaker_right", "auto")}
+          onSetManual={() => changeDeviceMode("wavemaker_right", "manual")}
           onPowerOn={() => sendPowerCommand("wavemaker_right", true, "manual_wavemaker_right_on")}
           onPowerOff={() =>
             sendPowerCommand("wavemaker_right", false, "manual_wavemaker_right_off")
