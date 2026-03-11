@@ -73,11 +73,31 @@ export default function OperationsPage() {
                 marginBottom: "24px",
               }}
             >
-              <SummaryCard label="Total Commands" value={summary.counts.commands_total} />
-              <SummaryCard label="Queued" value={summary.counts.commands_queued} />
-              <SummaryCard label="Dispatched" value={summary.counts.commands_dispatched} />
-              <SummaryCard label="Completed" value={summary.counts.commands_completed} />
-              <SummaryCard label="Failed" value={summary.counts.commands_failed} />
+              <SummaryCard
+                label="Total Commands"
+                value={summary.counts.commands_total}
+                tone="default"
+              />
+              <SummaryCard
+                label="Queued"
+                value={summary.counts.commands_queued}
+                tone={summary.counts.commands_queued > 0 ? "warning" : "success"}
+              />
+              <SummaryCard
+                label="Dispatched"
+                value={summary.counts.commands_dispatched}
+                tone="default"
+              />
+              <SummaryCard
+                label="Completed"
+                value={summary.counts.commands_completed}
+                tone="success"
+              />
+              <SummaryCard
+                label="Failed"
+                value={summary.counts.commands_failed}
+                tone={summary.counts.commands_failed > 0 ? "danger" : "success"}
+              />
             </div>
 
             <div style={{ marginBottom: "24px" }}>
@@ -115,17 +135,28 @@ export default function OperationsPage() {
 function SummaryCard({
   label,
   value,
+  tone,
 }: {
   label: string;
   value: number;
+  tone: "default" | "warning" | "danger" | "success";
 }) {
+  const palette =
+    tone === "danger"
+      ? { bg: "#ffebe9", fg: "#cf222e", border: "#ff818266" }
+      : tone === "warning"
+      ? { bg: "#fff8c5", fg: "#9a6700", border: "#d4a72c66" }
+      : tone === "success"
+      ? { bg: "#dafbe1", fg: "#1a7f37", border: "#4ac26b66" }
+      : { bg: "#ffffff", fg: "#1f2328", border: "#d0d7de" };
+
   return (
     <div
       style={{
-        border: "1px solid #d0d7de",
+        border: `1px solid ${palette.border}`,
         borderRadius: "12px",
         padding: "16px",
-        background: "#ffffff",
+        background: palette.bg,
         boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
       }}
     >
@@ -133,7 +164,7 @@ function SummaryCard({
         style={{
           fontSize: "0.85rem",
           fontWeight: 700,
-          color: "#57606a",
+          color: tone === "default" ? "#57606a" : palette.fg,
           marginBottom: "8px",
         }}
       >
@@ -143,7 +174,7 @@ function SummaryCard({
         style={{
           fontSize: "1.8rem",
           fontWeight: 800,
-          color: "#1f2328",
+          color: palette.fg,
         }}
       >
         {value.toLocaleString()}
