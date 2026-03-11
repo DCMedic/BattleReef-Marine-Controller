@@ -34,3 +34,11 @@ export async function setDeviceMode(
 ): Promise<DeviceStateSummary> {
   return apiPostEmpty<DeviceStateSummary>(`/device-states/${deviceKey}/mode/${mode}`);
 }
+
+export async function evaluateScheduleRules(): Promise<{
+  evaluated_at: string;
+  schedule_hour_utc: number;
+  results: Array<Record<string, unknown>>;
+}> {
+  return apiPostEmpty("/commands/evaluate/schedule");
+}

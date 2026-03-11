@@ -9,6 +9,7 @@ import { DeviceStateTile } from "../components/DeviceStateTile";
 import { ManualControlPanel } from "../components/ManualControlPanel";
 import { MetricCard } from "../components/MetricCard";
 import { RecentCommandsTable } from "../components/RecentCommandsTable";
+import { ScheduleAutomationPanel } from "../components/ScheduleAutomationPanel";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
 import { TelemetryMiniChart } from "../components/TelemetryMiniChart";
 import type {
@@ -103,6 +104,12 @@ export default function Dashboard() {
     }, 500);
   }
 
+  function handleScheduleEvaluated() {
+    window.setTimeout(() => {
+      void loadDashboard();
+    }, 1000);
+  }
+
   return (
     <div
       style={{
@@ -130,7 +137,7 @@ export default function Dashboard() {
               fontSize: "1rem",
             }}
           >
-            Live telemetry, command lifecycle, and device state overview.
+            Live telemetry, command lifecycle, device state, and scheduled automation.
           </p>
         </div>
 
@@ -210,6 +217,8 @@ export default function Dashboard() {
                 value={summary.counts.device_states.toLocaleString()}
               />
             </div>
+
+            <ScheduleAutomationPanel onScheduleEvaluated={handleScheduleEvaluated} />
 
             <ManualControlPanel
               deviceStates={summary.device_states}
