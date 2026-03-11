@@ -97,6 +97,12 @@ export default function Dashboard() {
     }, 1000);
   }
 
+  function handleDeviceModeChanged() {
+    window.setTimeout(() => {
+      void loadDashboard();
+    }, 500);
+  }
+
   return (
     <div
       style={{
@@ -208,6 +214,7 @@ export default function Dashboard() {
             <ManualControlPanel
               deviceStates={summary.device_states}
               onCommandSent={handleCommandSent}
+              onDeviceModeChanged={handleDeviceModeChanged}
             />
 
             <div

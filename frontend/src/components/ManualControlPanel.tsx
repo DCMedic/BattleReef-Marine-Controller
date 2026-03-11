@@ -1,11 +1,12 @@
 import { useState } from "react";
 
-import { createManualCommand } from "../api/queries";
+import { createManualCommand, setDeviceMode } from "../api/queries";
 import type { CommandResponse, DeviceStateSummary } from "../types";
 
 type ManualControlPanelProps = {
   deviceStates: DeviceStateSummary[];
   onCommandSent?: (command: CommandResponse) => void;
+  onDeviceModeChanged?: () => void;
 };
 
 type DeviceStatePayload = Record<string, unknown> | undefined;
@@ -15,6 +16,9 @@ type PowerControlCardProps = {
   deviceKey: string;
   description: string;
   statePayload?: DeviceStatePayload;
+  allowModeToggle?: boolean;
+  onSetAuto?: () => Promise<void>;
+  onSetManual?: () => Promise<void>;
   onPowerOn: () => Promise<void>;
   onPowerOff: () => Promise<void>;
 };
@@ -113,10 +117,14 @@ function PowerControlCard({
   deviceKey,
   description,
   statePayload,
+  allowModeToggle = false,
+  onSetAuto,
+  onSetManual,
   onPowerOn,
   onPowerOff,
 }: PowerControlCardProps) {
   const { busy, message, runAction } = useActionRunner();
+  const currentMode = formatText(statePayload?.mode, "auto");
 
   return (
     <div style={cardStyle}>
@@ -124,7 +132,31 @@ function PowerControlCard({
       <div style={descriptionStyle}>{description}</div>
 
       <StatusRow label="Power" value={formatBoolean(statePayload?.power)} />
-      <StatusRow label="Mode" value={formatText(statePayload?.mode)} />
+      <StatusRow label="Mode" value={currentMode} />
+
+      {allowModeToggle ? (
+        <div style={buttonRowStyle}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSetAuto && runAction(onSetAuto, `${deviceKey} set to auto mode.`)}
+            style={buttonStyle}
+          >
+            Set Auto
+          </button>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              onSetManual && runAction(onSetManual, `${deviceKey} set to manual mode.`)
+            }
+            style={buttonStyle}
+          >
+            Set Manual
+          </button>
+        </div>
+      ) : null}
 
       <div style={buttonRowStyle}>
         <button
@@ -323,6 +355,7 @@ const buttonStyle: React.CSSProperties = {
 export function ManualControlPanel({
   deviceStates,
   onCommandSent,
+  onDeviceModeChanged,
 }: ManualControlPanelProps) {
   const deviceStateMap = new Map(deviceStates.map((item) => [item.device_key, item]));
 
@@ -387,6 +420,11 @@ export function ManualControlPanel({
     onCommandSent?.(result);
   }
 
+  async function changeDeviceMode(deviceKey: string, mode: "auto" | "manual") {
+    await setDeviceMode(deviceKey, mode);
+    onDeviceModeChanged?.();
+  }
+
   return (
     <div>
       <div style={{ marginBottom: "12px" }}>
@@ -412,8 +450,11 @@ export function ManualControlPanel({
         <PowerControlCard
           title="Heater"
           deviceKey="heater_main"
-          description="Manual power control for the primary heater."
+          description="Primary heater with auto/manual arbitration."
           statePayload={deviceStateMap.get("heater_main")?.state_payload}
+          allowModeToggle={true}
+          onSetAuto={() => changeDeviceMode("heater_main", "auto")}
+          onSetManual={() => changeDeviceMode("heater_main", "manual")}
           onPowerOn={() => sendPowerCommand("heater_main", true, "manual_heater_on")}
           onPowerOff={() => sendPowerCommand("heater_main", false, "manual_heater_off")}
         />

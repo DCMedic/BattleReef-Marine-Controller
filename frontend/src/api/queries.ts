@@ -1,8 +1,9 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, apiPostEmpty } from "./client";
 import type {
   CommandCreateRequest,
   CommandListResponse,
   CommandResponse,
+  DeviceStateSummary,
   SystemSummaryResponse,
   TelemetryHistoryResponse,
 } from "../types";
@@ -25,4 +26,11 @@ export async function createManualCommand(
   payload: CommandCreateRequest
 ): Promise<CommandResponse> {
   return apiPost<CommandResponse, CommandCreateRequest>("/commands", payload);
+}
+
+export async function setDeviceMode(
+  deviceKey: string,
+  mode: "auto" | "manual"
+): Promise<DeviceStateSummary> {
+  return apiPostEmpty<DeviceStateSummary>(`/device-states/${deviceKey}/mode/${mode}`);
 }

@@ -1,121 +1,107 @@
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models.telemetry import TelemetryReading
-from app.rules.temperature_control import (
-    TemperatureRuleSettings,
-    evaluate_temperature_control,
-)
 from app.schemas.command import CommandCreateRequest
-from app.schemas.device_state import DeviceStateUpsertRequest
 from app.services.command_service import CommandService
 from app.services.device_state_service import DeviceStateService
+from app.services.telemetry_service import TelemetryService
 
 
 class RuleEngineService:
     def __init__(self, db: Session) -> None:
         self.db = db
+        self.telemetry_service = TelemetryService(db)
         self.command_service = CommandService(db)
         self.device_state_service = DeviceStateService(db)
-        self.temperature_settings = TemperatureRuleSettings()
 
-    def evaluate_temperature_rule(self) -> dict:
-        stmt = (
-            select(TelemetryReading)
-            .where(TelemetryReading.sensor_key == self.temperature_settings.sensor_key)
-            .order_by(TelemetryReading.reading_time.desc())
-            .limit(1)
-        )
-        latest = self.db.scalar(stmt)
+    def evaluate_temperature_rule(
+        self,
+        sensor_key: str = "tank_temp_main",
+        target_device: str = "heater_main",
+        low_threshold_f: float = 77.5,
+        high_threshold_f: float = 78.3,
+    ) -> dict:
+        current_mode = self.device_state_service.get_mode(target_device)
 
-        if latest is None:
+        if current_mode == "manual":
             return {
-                "evaluated": True,
-                "rule": "temperature_control",
                 "action_taken": False,
-                "reason": "no_temperature_reading_available",
+                "reason": "device_in_manual_mode",
+                "target_device": target_device,
+                "mode": current_mode,
             }
 
-        decision = evaluate_temperature_control(
-            temperature_f=latest.value_double,
-            settings=self.temperature_settings,
-        )
-
-        if decision is None:
+        records = self.telemetry_service.latest_by_sensor(sensor_key=sensor_key, limit=1)
+        if not records:
             return {
-                "evaluated": True,
-                "rule": "temperature_control",
                 "action_taken": False,
-                "reason": "temperature_within_band",
-                "temperature_f": latest.value_double,
-                "low_threshold_f": self.temperature_settings.low_threshold_f,
-                "high_threshold_f": self.temperature_settings.high_threshold_f,
+                "reason": "no_temperature_reading",
+                "target_device": target_device,
+                "mode": current_mode,
             }
 
-        desired_power = decision["command_payload"].get("power")
-        current_state = self.device_state_service.get_by_device_key(decision["target_device"])
+        latest = records[0]
+        temperature_f = latest.value_double
 
-        if current_state is not None:
-            current_power = current_state.state_payload.get("power")
-            if current_power == desired_power:
-                return {
-                    "evaluated": True,
-                    "rule": "temperature_control",
-                    "action_taken": False,
-                    "reason": "desired_state_already_set",
-                    "temperature_f": latest.value_double,
-                    "target_device": decision["target_device"],
-                    "desired_power": desired_power,
-                    "current_state": current_state.state_payload,
-                }
-
-        command, created = self.command_service.create_if_not_duplicate(
-            CommandCreateRequest(
+        if temperature_f < low_threshold_f:
+            payload = CommandCreateRequest(
                 requested_by="rule_engine.temperature_control",
-                target_device=decision["target_device"],
-                command_type=decision["command_type"],
-                command_payload=decision["command_payload"],
-            ),
-            status="queued",
-        )
+                target_device=target_device,
+                command_type="set_power",
+                command_payload={
+                    "power": True,
+                    "mode": "auto",
+                    "reason": "temperature_below_low_threshold",
+                    "temperature_f": round(temperature_f, 2),
+                    "low_threshold_f": low_threshold_f,
+                    "high_threshold_f": high_threshold_f,
+                },
+            )
 
-        if not created:
+            record, created = self.command_service.create_if_not_duplicate(payload)
+
             return {
-                "evaluated": True,
-                "rule": "temperature_control",
-                "action_taken": False,
-                "reason": "duplicate_command_suppressed",
-                "temperature_f": latest.value_double,
-                "command_id": command.id,
-                "target_device": command.target_device,
-                "command_type": command.command_type,
-                "command_payload": command.command_payload,
-                "status": command.status,
+                "action_taken": created,
+                "command_id": record.id,
+                "status": record.status,
+                "target_device": target_device,
+                "temperature_f": round(temperature_f, 2),
+                "mode": current_mode,
+                "reason": "heater_on" if created else "duplicate_command_suppressed",
             }
 
-        state_record = self.device_state_service.upsert(
-            DeviceStateUpsertRequest(
-                device_key=decision["target_device"],
-                state_payload={
-                    "power": desired_power,
+        if temperature_f > high_threshold_f:
+            payload = CommandCreateRequest(
+                requested_by="rule_engine.temperature_control",
+                target_device=target_device,
+                command_type="set_power",
+                command_payload={
+                    "power": False,
                     "mode": "auto",
-                    "reason": decision["command_payload"].get("reason"),
-                    "last_command_id": command.id,
+                    "reason": "temperature_above_high_threshold",
+                    "temperature_f": round(temperature_f, 2),
+                    "low_threshold_f": low_threshold_f,
+                    "high_threshold_f": high_threshold_f,
                 },
-                state_source="rule_engine.temperature_control",
             )
-        )
+
+            record, created = self.command_service.create_if_not_duplicate(payload)
+
+            return {
+                "action_taken": created,
+                "command_id": record.id,
+                "status": record.status,
+                "target_device": target_device,
+                "temperature_f": round(temperature_f, 2),
+                "mode": current_mode,
+                "reason": "heater_off" if created else "duplicate_command_suppressed",
+            }
 
         return {
-            "evaluated": True,
-            "rule": "temperature_control",
-            "action_taken": True,
-            "temperature_f": latest.value_double,
-            "command_id": command.id,
-            "target_device": command.target_device,
-            "command_type": command.command_type,
-            "command_payload": command.command_payload,
-            "status": command.status,
-            "device_state_id": state_record.id,
-            "device_state": state_record.state_payload,
+            "action_taken": False,
+            "reason": "temperature_within_band",
+            "target_device": target_device,
+            "temperature_f": round(temperature_f, 2),
+            "mode": current_mode,
+            "low_threshold_f": low_threshold_f,
+            "high_threshold_f": high_threshold_f,
         }
