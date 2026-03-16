@@ -1,52 +1,61 @@
+from __future__ import annotations
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes.commands import router as commands_router
-from app.api.routes.device_states import router as device_states_router
-from app.api.routes.health import router as health_router
-from app.api.routes.schedules import router as schedules_router
-from app.api.routes.system import router as system_router
-from app.api.routes.telemetry import router as telemetry_router
-from app.config import get_settings
-from app.db.base import Base
-from app.db.session import engine
-from app.services.mqtt_listener import start_mqtt_listener
-
-settings = get_settings()
-
-app = FastAPI(
-    title=settings.app_name,
-    version="0.1.0",
-    debug=settings.app_debug,
+from app.api.routes import (
+    alerts,
+    commands,
+    devices,
+    device_states,
+    health,
+    nodes,
+    schedules,
+    stream,
+    system,
+    tanks,
+    telemetry,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-app.include_router(health_router, prefix=settings.api_prefix)
-app.include_router(telemetry_router, prefix=settings.api_prefix)
-app.include_router(commands_router, prefix=settings.api_prefix)
-app.include_router(device_states_router, prefix=settings.api_prefix)
-app.include_router(system_router, prefix=settings.api_prefix)
-app.include_router(schedules_router, prefix=settings.api_prefix)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="BattleReef Marine Controller API",
+        version="0.1.0",
+        description="Backend API for BattleReef aquarium monitoring, automation, and device control.",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/", tags=["system"])
+    def root() -> dict[str, str]:
+        return {
+            "name": "BattleReef Marine Controller API",
+            "status": "online",
+        }
+
+    app.include_router(health.router)
+    app.include_router(system.router)
+    app.include_router(alerts.router)
+    app.include_router(commands.router)
+    app.include_router(device_states.router)
+    app.include_router(nodes.router)
+    app.include_router(schedules.router)
+    app.include_router(stream.router)
+    app.include_router(tanks.router)
+    app.include_router(telemetry.router)
+
+    # Existing repo already has a devices route file here.
+    # This is the correct place to expose the new direct device-control endpoints.
+    app.include_router(devices.router)
+
+    return app
 
 
-@app.on_event("startup")
-def startup_event() -> None:
-    Base.metadata.create_all(bind=engine)
-    start_mqtt_listener()
-
-
-@app.get("/")
-def root():
-    return {
-        "name": settings.app_name,
-        "environment": settings.app_env,
-        "docs": "/docs",
-        "api_prefix": settings.api_prefix,
-    }
+app = create_app()
