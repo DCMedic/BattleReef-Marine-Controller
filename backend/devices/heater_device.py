@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.devices.base_device import BaseDevice
 from backend.hardware.hal import HardwareAbstractionLayer
-from .base_device import BaseDevice
 
 
 class HeaterDevice(BaseDevice):
@@ -11,10 +11,12 @@ class HeaterDevice(BaseDevice):
         super().__init__(name=name, kind="heater")
         self.hal = hal
         self.relay_channel = relay_channel
-        self.state.attributes.update({
-            "power": False,
-            "relay_channel": relay_channel,
-        })
+        self.state.attributes.update(
+            {
+                "power": False,
+                "relay_channel": relay_channel,
+            }
+        )
 
     def on(self) -> dict[str, Any]:
         self.hal.digital_write(self.relay_channel, True)

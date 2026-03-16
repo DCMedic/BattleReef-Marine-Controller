@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.devices.base_device import BaseDevice
 from backend.hardware.hal import HardwareAbstractionLayer
-from .base_device import BaseDevice
 
 
 class FeederDevice(BaseDevice):
@@ -11,10 +11,12 @@ class FeederDevice(BaseDevice):
         super().__init__(name=name, kind="feeder")
         self.hal = hal
         self.channel = channel
-        self.state.attributes.update({
-            "last_feed_seconds": 0,
-            "channel": channel,
-        })
+        self.state.attributes.update(
+            {
+                "last_feed_seconds": 0,
+                "channel": channel,
+            }
+        )
 
     def feed(self, seconds: int = 2) -> dict[str, Any]:
         self.hal.digital_write(self.channel, True)

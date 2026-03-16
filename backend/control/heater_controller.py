@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
+from backend.services.device_manager import DeviceManager
+from backend.services.sensor_service import SensorService
+
 
 class HeaterController:
     def __init__(

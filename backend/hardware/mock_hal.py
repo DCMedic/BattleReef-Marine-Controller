@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from .hal import HardwareAbstractionLayer
+from backend.hardware.hal import HardwareAbstractionLayer
 
 
 class MockHAL(HardwareAbstractionLayer):
-    """Mock hardware layer for local development and UI/API testing."""
-
     def __init__(self) -> None:
         self.digital_channels: dict[str, bool] = {}
         self.analog_channels: dict[str, float] = {}
@@ -26,8 +24,7 @@ class MockHAL(HardwareAbstractionLayer):
         return self.analog_channels.get(channel, 0.0)
 
     def pwm_write(self, channel: str, duty_cycle: float) -> None:
-        safe_duty = max(0.0, min(100.0, duty_cycle))
-        self.pwm_channels[channel] = safe_duty
+        self.pwm_channels[channel] = max(0.0, min(100.0, duty_cycle))
 
     def read_temperature(self, channel: str) -> float:
         return self.temperature_channels.get(channel, 0.0)
@@ -45,4 +42,5 @@ class MockHAL(HardwareAbstractionLayer):
             "temperature_channels": list(self.temperature_channels.keys()),
             "ph_channels": list(self.ph_channels.keys()),
             "salinity_channels": list(self.salinity_channels.keys()),
+            "pwm_channels": list(self.pwm_channels.keys()),
         }

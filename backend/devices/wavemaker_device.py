@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.devices.base_device import BaseDevice
 from backend.hardware.hal import HardwareAbstractionLayer
-from .base_device import BaseDevice
 
 
 class WavemakerDevice(BaseDevice):
@@ -11,10 +11,12 @@ class WavemakerDevice(BaseDevice):
         super().__init__(name=name, kind="wavemaker")
         self.hal = hal
         self.pwm_channel = pwm_channel
-        self.state.attributes.update({
-            "intensity": 0.0,
-            "pwm_channel": pwm_channel,
-        })
+        self.state.attributes.update(
+            {
+                "intensity": 0.0,
+                "pwm_channel": pwm_channel,
+            }
+        )
 
     def set_intensity(self, intensity: float) -> dict[str, Any]:
         safe_value = max(0.0, min(100.0, float(intensity)))

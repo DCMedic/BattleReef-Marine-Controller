@@ -54,7 +54,7 @@ class ErrorResponse(BaseModel):
 
 @router.get(
     "",
-    summary="List all registered direct-control devices",
+    summary="List all registered devices",
 )
 def list_devices() -> list[dict[str, Any]]:
     services = get_services()
@@ -63,7 +63,7 @@ def list_devices() -> list[dict[str, Any]]:
 
 @router.get(
     "/status",
-    summary="Get direct device-layer status",
+    summary="Get backend device-layer status",
 )
 def device_system_status() -> dict[str, Any]:
     return get_system_status()
@@ -72,7 +72,7 @@ def device_system_status() -> dict[str, Any]:
 @router.get(
     "/telemetry",
     response_model=TelemetryResponse,
-    summary="Read current direct sensor telemetry",
+    summary="Read current telemetry from the sensor service",
     responses={500: {"model": ErrorResponse}},
 )
 def get_telemetry() -> TelemetryResponse:
@@ -90,7 +90,7 @@ def get_telemetry() -> TelemetryResponse:
 @router.get(
     "/{device_name}",
     response_model=DeviceCommandResponse,
-    summary="Get a single direct-control device snapshot",
+    summary="Get a single device snapshot by name",
     responses={404: {"model": ErrorResponse}},
 )
 def get_device(device_name: str) -> DeviceCommandResponse:
@@ -108,7 +108,7 @@ def get_device(device_name: str) -> DeviceCommandResponse:
 @router.post(
     "/{device_name}/command",
     response_model=DeviceCommandResponse,
-    summary="Send a command to a direct-control device",
+    summary="Send a command to a device",
     responses={
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
@@ -151,7 +151,7 @@ def command_device(
 @router.post(
     "/heater/evaluate",
     response_model=HeaterEvaluationResponse,
-    summary="Evaluate heater automation against current telemetry",
+    summary="Evaluate heater control logic against current telemetry",
     responses={500: {"model": ErrorResponse}},
 )
 def evaluate_heater() -> HeaterEvaluationResponse:

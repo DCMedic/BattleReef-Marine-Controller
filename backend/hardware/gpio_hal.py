@@ -2,16 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from .hal import HardwareAbstractionLayer
+from backend.hardware.hal import HardwareAbstractionLayer
 
 
 class GPIOHAL(HardwareAbstractionLayer):
-    """
-    Placeholder GPIO implementation.
-    Replace internals with your target hardware library such as gpiod,
-    gpiozero, pigpio, or vendor-specific relay/ADC drivers.
-    """
-
     def __init__(self) -> None:
         self._digital: dict[str, bool] = {}
         self._pwm: dict[str, float] = {}
@@ -38,4 +32,8 @@ class GPIOHAL(HardwareAbstractionLayer):
         return 0.0
 
     def metadata(self) -> dict[str, Any]:
-        return {"driver": "gpio"}
+        return {
+            "driver": "gpio",
+            "digital_channels": list(self._digital.keys()),
+            "pwm_channels": list(self._pwm.keys()),
+        }

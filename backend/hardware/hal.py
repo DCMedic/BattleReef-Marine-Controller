@@ -5,8 +5,6 @@ from typing import Any
 
 
 class HardwareAbstractionLayer(ABC):
-    """Abstract interface for all physical I/O interactions."""
-
     @abstractmethod
     def digital_write(self, channel: str, state: bool) -> None:
         raise NotImplementedError
