@@ -3,15 +3,15 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from backend.control.heater_controller import HeaterController
-from backend.devices.feeder_device import FeederDevice
-from backend.devices.heater_device import HeaterDevice
-from backend.devices.wavemaker_device import WavemakerDevice
-from backend.hardware.gpio_hal import GPIOHAL
-from backend.hardware.hal import HardwareAbstractionLayer
-from backend.hardware.mock_hal import MockHAL
-from backend.services.device_manager import DeviceManager
-from backend.services.sensor_service import SensorService
+from app.control.heater_controller import HeaterController
+from app.devices.feeder_device import FeederDevice
+from app.devices.heater_device import HeaterDevice
+from app.devices.wavemaker_device import WavemakerDevice
+from app.hardware.gpio_hal import GPIOHAL
+from app.hardware.hal import HardwareAbstractionLayer
+from app.hardware.mock_hal import MockHAL
+from app.services.device_manager import DeviceManager
+from app.services.sensor_service import SensorService
 
 
 def _get_env_str(name: str, default: str) -> str:

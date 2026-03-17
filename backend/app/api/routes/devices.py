@@ -5,7 +5,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
-from backend.bootstrap_devices import get_services, get_system_status
+from app.bootstrap_devices import get_services, get_system_status
 
 
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
