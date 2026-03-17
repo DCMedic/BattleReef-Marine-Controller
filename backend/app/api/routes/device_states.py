@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -5,14 +7,15 @@ from app.db.session import get_db
 from app.schemas.device_state import DeviceStateResponse
 from app.services.device_state_service import DeviceStateService
 
-router = APIRouter(prefix="/device-states", tags=["device-states"])
+
+router = APIRouter(prefix="/api/v1/device-states", tags=["device-states"])
 
 
 @router.get("/{device_key}", response_model=DeviceStateResponse)
 def get_device_state(
     device_key: str,
     db: Session = Depends(get_db),
-):
+) -> DeviceStateResponse:
     service = DeviceStateService(db)
     record = service.get_by_device_key(device_key)
 
@@ -33,7 +36,7 @@ def set_device_mode(
     device_key: str,
     mode: str,
     db: Session = Depends(get_db),
-):
+) -> DeviceStateResponse:
     normalized_mode = mode.lower().strip()
 
     if normalized_mode not in {"auto", "manual"}:

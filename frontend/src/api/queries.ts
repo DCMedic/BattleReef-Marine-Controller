@@ -12,22 +12,35 @@ import type {
   TelemetryHistoryResponse,
 } from "../types";
 
+const DEFAULT_HISTORY_SENSOR_KEYS = [
+  "tank_temp_main",
+  "tank_ph_main",
+  "tank_salinity_main",
+  "sump_level_main",
+];
+
 export async function fetchSystemSummary(): Promise<SystemSummaryResponse> {
   return apiGet<SystemSummaryResponse>("/system/summary");
 }
 
-export async function fetchTelemetryHistory(): Promise<TelemetryHistoryResponse> {
-  return apiGet<TelemetryHistoryResponse>(
-    "/telemetry/history?sensor_keys=tank_temp_main,tank_ph_main,tank_salinity_main,sump_level_main&limit=120"
-  );
+export async function fetchTelemetryHistory(
+  sensorKeys: string[] = DEFAULT_HISTORY_SENSOR_KEYS,
+  limit = 120
+): Promise<TelemetryHistoryResponse> {
+  const params = new URLSearchParams({
+    sensor_keys: sensorKeys.join(","),
+    limit: String(limit),
+  });
+
+  return apiGet<TelemetryHistoryResponse>(`/telemetry/history?${params.toString()}`);
 }
 
-export async function fetchRecentCommands(): Promise<CommandListResponse> {
-  return apiGet<CommandListResponse>("/commands?limit=10");
+export async function fetchRecentCommands(limit = 10): Promise<CommandListResponse> {
+  return apiGet<CommandListResponse>(`/commands?limit=${limit}`);
 }
 
-export async function fetchSchedules(): Promise<ScheduleListResponse> {
-  return apiGet<ScheduleListResponse>("/schedules?limit=100");
+export async function fetchSchedules(limit = 100): Promise<ScheduleListResponse> {
+  return apiGet<ScheduleListResponse>(`/schedules?limit=${limit}`);
 }
 
 export async function seedDefaultSchedules(): Promise<ScheduleListResponse> {

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -10,14 +12,15 @@ from app.schemas.schedule import (
 )
 from app.services.schedule_service import ScheduleService
 
-router = APIRouter(prefix="/schedules", tags=["schedules"])
+
+router = APIRouter(prefix="/api/v1/schedules", tags=["schedules"])
 
 
 @router.get("", response_model=ScheduleListResponse)
 def list_schedules(
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-):
+) -> ScheduleListResponse:
     service = ScheduleService(db)
     records = service.list_schedules(limit=limit)
 
@@ -42,7 +45,7 @@ def list_schedules(
 def create_schedule(
     payload: ScheduleCreateRequest,
     db: Session = Depends(get_db),
-):
+) -> ScheduleResponse:
     service = ScheduleService(db)
     record = service.create_schedule(payload)
 
@@ -63,7 +66,7 @@ def update_schedule(
     schedule_id: int,
     payload: ScheduleUpdateRequest,
     db: Session = Depends(get_db),
-):
+) -> ScheduleResponse:
     service = ScheduleService(db)
     record = service.update_schedule(schedule_id, payload)
 
@@ -85,7 +88,7 @@ def update_schedule(
 @router.post("/seed-defaults", response_model=ScheduleListResponse)
 def seed_default_schedules(
     db: Session = Depends(get_db),
-):
+) -> ScheduleListResponse:
     service = ScheduleService(db)
     records = service.seed_defaults_if_empty()
 

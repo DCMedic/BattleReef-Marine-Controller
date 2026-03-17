@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -9,14 +11,15 @@ from app.schemas.telemetry import (
 )
 from app.services.telemetry_service import TelemetryService
 
-router = APIRouter(prefix="/telemetry", tags=["telemetry"])
+
+router = APIRouter(prefix="/api/v1/telemetry", tags=["telemetry"])
 
 
 @router.get("/latest", response_model=TelemetryListResponse)
 def get_latest_telemetry(
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-):
+) -> TelemetryListResponse:
     service = TelemetryService(db)
     records = service.latest(limit=limit)
 
@@ -43,7 +46,7 @@ def get_telemetry_history(
     ),
     limit: int = Query(default=120, ge=10, le=1000),
     db: Session = Depends(get_db),
-):
+) -> TelemetryHistoryResponse:
     requested_keys = [item.strip() for item in sensor_keys.split(",") if item.strip()]
 
     service = TelemetryService(db)
