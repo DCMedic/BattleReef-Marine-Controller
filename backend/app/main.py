@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
@@ -40,20 +40,22 @@ def create_app() -> FastAPI:
             "status": "online",
         }
 
-    app.include_router(health.router)
-    app.include_router(system.router)
-    app.include_router(alerts.router)
-    app.include_router(commands.router)
-    app.include_router(device_states.router)
-    app.include_router(nodes.router)
-    app.include_router(schedules.router)
-    app.include_router(stream.router)
-    app.include_router(tanks.router)
-    app.include_router(telemetry.router)
+    # Centralized API version router
+    api_v1 = APIRouter(prefix="/api/v1")
 
-    # Existing repo already has a devices route file here.
-    # This is the correct place to expose the new direct device-control endpoints.
-    app.include_router(devices.router)
+    api_v1.include_router(health.router)
+    api_v1.include_router(system.router)
+    api_v1.include_router(alerts.router)
+    api_v1.include_router(commands.router)
+    api_v1.include_router(device_states.router)
+    api_v1.include_router(nodes.router)
+    api_v1.include_router(schedules.router)
+    api_v1.include_router(stream.router)
+    api_v1.include_router(tanks.router)
+    api_v1.include_router(telemetry.router)
+    api_v1.include_router(devices.router)
+
+    app.include_router(api_v1)
 
     return app
 

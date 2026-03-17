@@ -8,7 +8,7 @@ from app.schemas.device_state import DeviceStateResponse
 from app.services.device_state_service import DeviceStateService
 
 
-router = APIRouter(prefix="/api/v1/device-states", tags=["device-states"])
+router = APIRouter(prefix="/device-states", tags=["device-states"])
 
 
 @router.get("/{device_key}", response_model=DeviceStateResponse)

@@ -9,8 +9,7 @@ from app.services.command_service import CommandService
 from app.services.rule_engine import RuleEngineService
 
 
-router = APIRouter(prefix="/api/v1/commands", tags=["commands"])
-
+router = APIRouter(prefix="/commands", tags=["commands"])
 
 @router.get("", response_model=CommandListResponse)
 def list_commands(

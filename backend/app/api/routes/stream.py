@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 
 
-router = APIRouter(prefix="/api/v1/stream", tags=["stream"])
+router = APIRouter(prefix="/stream", tags=["stream"])
 
 
 @router.get("", summary="Get stream service status")

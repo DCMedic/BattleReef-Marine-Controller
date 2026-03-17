@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.bootstrap_devices import get_services, get_system_status
 
 
-router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
+router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 class DeviceCommandRequest(BaseModel):

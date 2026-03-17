@@ -12,8 +12,7 @@ from app.schemas.telemetry import (
 from app.services.telemetry_service import TelemetryService
 
 
-router = APIRouter(prefix="/api/v1/telemetry", tags=["telemetry"])
-
+router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
 @router.get("/latest", response_model=TelemetryListResponse)
 def get_latest_telemetry(

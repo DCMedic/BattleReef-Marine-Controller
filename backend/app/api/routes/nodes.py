@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 
 
-router = APIRouter(prefix="/api/v1/nodes", tags=["nodes"])
+router = APIRouter(prefix="/nodes", tags=["nodes"])
 
 
 @router.get("", summary="List controller nodes")

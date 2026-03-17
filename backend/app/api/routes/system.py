@@ -8,8 +8,7 @@ from app.schemas.system import SystemSummaryResponse
 from app.services.system_service import SystemService
 
 
-router = APIRouter(prefix="/api/v1/system", tags=["system"])
-
+router = APIRouter(prefix="/system", tags=["system"])
 
 @router.get("/summary", response_model=SystemSummaryResponse)
 def get_system_summary(

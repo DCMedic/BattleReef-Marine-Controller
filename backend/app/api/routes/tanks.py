@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 
 
-router = APIRouter(prefix="/api/v1/tanks", tags=["tanks"])
+router = APIRouter(prefix="/tanks", tags=["tanks"])
 
 
 @router.get("", summary="List configured aquarium tanks")
