@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, APIRouter
+import threading
+import time
+
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
@@ -16,6 +19,26 @@ from app.api.routes import (
     tanks,
     telemetry,
 )
+from app.core.api_self_test import run_api_self_test
+from app.db.session import SessionLocal
+from app.services.schedule_engine import ScheduleEngine
+
+
+def start_schedule_loop():
+    def loop():
+        while True:
+            db = SessionLocal()
+            try:
+                engine = ScheduleEngine(db)
+                result = engine.evaluate()
+                print("SCHEDULE ENGINE:", result)
+            finally:
+                db.close()
+
+            time.sleep(30)
+
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
 
 
 def create_app() -> FastAPI:
@@ -40,7 +63,6 @@ def create_app() -> FastAPI:
             "status": "online",
         }
 
-    # Centralized API version router
     api_v1 = APIRouter(prefix="/api/v1")
 
     api_v1.include_router(health.router)
@@ -56,6 +78,11 @@ def create_app() -> FastAPI:
     api_v1.include_router(devices.router)
 
     app.include_router(api_v1)
+
+    @app.on_event("startup")
+    def run_startup_checks() -> None:
+        run_api_self_test(app)
+        start_schedule_loop()
 
     return app
 

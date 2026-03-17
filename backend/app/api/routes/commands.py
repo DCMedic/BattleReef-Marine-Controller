@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -7,15 +5,16 @@ from app.db.session import get_db
 from app.schemas.command import CommandCreateRequest, CommandListResponse, CommandResponse
 from app.services.command_service import CommandService
 from app.services.rule_engine import RuleEngineService
-
+from app.services.schedule_engine import ScheduleEngine
 
 router = APIRouter(prefix="/commands", tags=["commands"])
+
 
 @router.get("", response_model=CommandListResponse)
 def list_commands(
     limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
-) -> CommandListResponse:
+):
     service = CommandService(db)
     records = service.list_recent(limit=limit)
 
@@ -42,7 +41,7 @@ def list_commands(
 def create_command(
     payload: CommandCreateRequest,
     db: Session = Depends(get_db),
-) -> CommandResponse:
+):
     service = CommandService(db)
     record = service.create_command(payload)
 
@@ -63,7 +62,7 @@ def create_command(
 @router.post("/evaluate/temperature")
 def evaluate_temperature_rule(
     db: Session = Depends(get_db),
-) -> dict[str, object]:
+):
     service = RuleEngineService(db)
     return service.evaluate_temperature_rule()
 
@@ -71,6 +70,6 @@ def evaluate_temperature_rule(
 @router.post("/evaluate/schedule")
 def evaluate_schedule_rules(
     db: Session = Depends(get_db),
-) -> dict[str, object]:
-    service = RuleEngineService(db)
-    return service.evaluate_scheduled_automation()
+):
+    engine = ScheduleEngine(db)
+    return engine.evaluate()
