@@ -4,16 +4,20 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
+from app.core.runtime_alerts import runtime_alerts
+
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 
 @router.get("", summary="List active alerts")
 def list_alerts() -> dict[str, object]:
+    items = runtime_alerts.list_active()
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "items": [],
-        "count": 0,
+        "items": items,
+        "count": len(items),
         "status": "ok",
     }
 

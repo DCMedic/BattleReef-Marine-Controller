@@ -21,11 +21,13 @@ from app.api.routes import (
 )
 from app.core.api_self_test import run_api_self_test
 from app.db.session import SessionLocal
+from app.services.command_dispatcher import start_command_dispatcher
+from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
 
 
-def start_schedule_loop():
-    def loop():
+def start_schedule_loop() -> None:
+    def loop() -> None:
         while True:
             db = SessionLocal()
             try:
@@ -36,6 +38,23 @@ def start_schedule_loop():
                 db.close()
 
             time.sleep(30)
+
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
+
+
+def start_safety_watchdog_loop() -> None:
+    def loop() -> None:
+        while True:
+            db = SessionLocal()
+            try:
+                watchdog = SafetyWatchdogService(db)
+                result = watchdog.evaluate()
+                print("SAFETY WATCHDOG:", result)
+            finally:
+                db.close()
+
+            time.sleep(15)
 
     thread = threading.Thread(target=loop, daemon=True)
     thread.start()
@@ -83,6 +102,8 @@ def create_app() -> FastAPI:
     def run_startup_checks() -> None:
         run_api_self_test(app)
         start_schedule_loop()
+        start_command_dispatcher()
+        start_safety_watchdog_loop()
 
     return app
 
