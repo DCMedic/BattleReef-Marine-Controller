@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.core.runtime_alerts import runtime_alerts
 
@@ -27,4 +27,30 @@ def alerts_health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "alerts",
+    }
+
+
+@router.delete("/{alert_key}", summary="Clear a single active alert")
+def clear_alert(alert_key: str) -> dict[str, object]:
+    cleared = runtime_alerts.clear(alert_key)
+
+    if not cleared:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    return {
+        "status": "ok",
+        "cleared": alert_key,
+    }
+
+
+@router.delete("", summary="Clear all active alerts")
+def clear_all_alerts() -> dict[str, object]:
+    items = runtime_alerts.list_active()
+
+    for item in items:
+        runtime_alerts.clear(item["key"])
+
+    return {
+        "status": "ok",
+        "cleared_count": len(items),
     }

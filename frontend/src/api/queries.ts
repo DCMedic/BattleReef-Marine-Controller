@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostEmpty, apiPut } from "./client";
+import { apiDelete, apiGet, apiPost, apiPostEmpty, apiPut } from "./client";
 import type {
   CommandCreateRequest,
   CommandListResponse,
@@ -11,6 +11,7 @@ import type {
   SystemSummaryResponse,
   TelemetryHistoryResponse,
 } from "../types";
+import type { AlertsListResponse } from "../types/alerts";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
   "tank_temp_main",
@@ -82,4 +83,16 @@ export async function evaluateScheduleRules(): Promise<{
   results: Array<Record<string, unknown>>;
 }> {
   return apiPostEmpty("/commands/evaluate/schedule");
+}
+
+export async function fetchAlerts(): Promise<AlertsListResponse> {
+  return apiGet<AlertsListResponse>("/alerts");
+}
+
+export async function clearAlert(alertKey: string): Promise<{ status: string; cleared: string }> {
+  return apiDelete<{ status: string; cleared: string }>(`/alerts/${alertKey}`);
+}
+
+export async function clearAllAlerts(): Promise<{ status: string; cleared_count: number }> {
+  return apiDelete<{ status: string; cleared_count: number }>("/alerts");
 }

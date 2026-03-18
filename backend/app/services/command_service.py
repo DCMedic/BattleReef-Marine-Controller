@@ -1,32 +1,33 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy.orm import Session
 
+from app.db.models.command import CommandRecord
 from app.schemas.command import CommandCreateRequest
-from app.db.models.command import Command
 
 
 class CommandService:
     """
-    Handles creation, retrieval, and tracking of device commands.
+    Handles creation, retrieval, and lifecycle management of device commands.
     """
 
     def __init__(self, db: Session):
         self.db = db
-        self.model = Command
+        self.model = CommandRecord
 
     # -----------------------------
     # CREATE COMMAND
     # -----------------------------
-    def create_command(self, payload: CommandCreateRequest) -> Command:
+    def create_command(self, payload: CommandCreateRequest) -> CommandRecord:
         record = self.model(
             requested_by=payload.requested_by,
             target_device=payload.target_device,
             command_type=payload.command_type,
             command_payload=payload.command_payload,
-            status="pending",
+            status="queued",
         )
 
         self.db.add(record)
@@ -38,7 +39,7 @@ class CommandService:
     # -----------------------------
     # LIST RECENT COMMANDS
     # -----------------------------
-    def list_recent(self, limit: int = 50) -> List[Command]:
+    def list_recent(self, limit: int = 50) -> List[CommandRecord]:
         return (
             self.db.query(self.model)
             .order_by(self.model.requested_at.desc())
@@ -47,9 +48,21 @@ class CommandService:
         )
 
     # -----------------------------
+    # LIST QUEUED COMMANDS
+    # -----------------------------
+    def list_queued(self, limit: int = 20) -> List[CommandRecord]:
+        return (
+            self.db.query(self.model)
+            .filter(self.model.status == "queued")
+            .order_by(self.model.requested_at.asc())
+            .limit(limit)
+            .all()
+        )
+
+    # -----------------------------
     # GET LAST COMMAND FOR DEVICE
     # -----------------------------
-    def get_last_command_for_device(self, device_key: str) -> Command | None:
+    def get_last_command_for_device(self, device_key: str) -> CommandRecord | None:
         return (
             self.db.query(self.model)
             .filter(self.model.target_device == device_key)
@@ -58,50 +71,98 @@ class CommandService:
         )
 
     # -----------------------------
-    # MARK COMMAND ACKNOWLEDGED
+    # LOOKUP BY ID
     # -----------------------------
-    def acknowledge_command(self, command_id: int) -> Command | None:
-        record = self.db.query(self.model).get(command_id)
+    def get_by_id(self, command_id: int) -> CommandRecord | None:
+        return (
+            self.db.query(self.model)
+            .filter(self.model.id == command_id)
+            .first()
+        )
 
-        if not record:
-            return None
-
+    # -----------------------------
+    # MARK ACKNOWLEDGED
+    # -----------------------------
+    def mark_acknowledged(self, record: CommandRecord) -> CommandRecord:
         record.status = "acknowledged"
+        record.acknowledged_at = datetime.now(timezone.utc)
 
+        self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
 
         return record
 
     # -----------------------------
-    # MARK COMMAND COMPLETED
+    # MARK DISPATCHED
     # -----------------------------
-    def complete_command(self, command_id: int) -> Command | None:
-        record = self.db.query(self.model).get(command_id)
+    def mark_dispatched(self, record: CommandRecord) -> CommandRecord:
+        now = datetime.now(timezone.utc)
 
-        if not record:
-            return None
+        record.status = "dispatched"
+        if record.acknowledged_at is None:
+            record.acknowledged_at = now
+
+        self.db.add(record)
+        self.db.commit()
+        self.db.refresh(record)
+
+        return record
+
+    # -----------------------------
+    # MARK COMPLETED
+    # -----------------------------
+    def mark_completed(self, record: CommandRecord) -> CommandRecord:
+        now = datetime.now(timezone.utc)
+
+        if record.acknowledged_at is None:
+            record.acknowledged_at = now
 
         record.status = "completed"
+        record.completed_at = now
 
+        self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
 
         return record
 
     # -----------------------------
-    # MARK COMMAND FAILED
+    # MARK FAILED
     # -----------------------------
-    def fail_command(self, command_id: int, error_message: str) -> Command | None:
-        record = self.db.query(self.model).get(command_id)
+    def mark_failed(self, record: CommandRecord, error_message: str) -> CommandRecord:
+        now = datetime.now(timezone.utc)
 
-        if not record:
-            return None
+        if record.acknowledged_at is None:
+            record.acknowledged_at = now
 
         record.status = "failed"
+        record.completed_at = now
         record.error_message = error_message
 
+        self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
 
         return record
+
+    # -----------------------------
+    # LEGACY ID-BASED HELPERS
+    # -----------------------------
+    def acknowledge_command(self, command_id: int) -> CommandRecord | None:
+        record = self.get_by_id(command_id)
+        if record is None:
+            return None
+        return self.mark_acknowledged(record)
+
+    def complete_command(self, command_id: int) -> CommandRecord | None:
+        record = self.get_by_id(command_id)
+        if record is None:
+            return None
+        return self.mark_completed(record)
+
+    def fail_command(self, command_id: int, error_message: str) -> CommandRecord | None:
+        record = self.get_by_id(command_id)
+        if record is None:
+            return None
+        return self.mark_failed(record, error_message)

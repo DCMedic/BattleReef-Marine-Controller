@@ -1,55 +1,61 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") || "http://127.0.0.1:8000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-
+async function parseResponse<T>(response: Response, method: string, path: string): Promise<T> {
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API ${init?.method ?? "GET"} ${path} failed: ${response.status} ${text}`);
+    throw new Error(`API ${method} ${path} failed: ${response.status} ${text}`);
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return response.json() as Promise<T>;
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return request<T>(path, {
-    method: "GET",
-  });
+  const response = await fetch(`${API_BASE_URL}${path}`);
+  return parseResponse<T>(response, "GET", path);
 }
 
-export async function apiPost<TResponse, TBody>(
+export async function apiPost<TResponse, TRequest>(
   path: string,
-  body: TBody
+  payload: TRequest
 ): Promise<TResponse> {
-  return request<TResponse>(path, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
-}
 
-export async function apiPut<TResponse, TBody>(
-  path: string,
-  body: TBody
-): Promise<TResponse> {
-    return request<TResponse>(path, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    });
+  return parseResponse<TResponse>(response, "POST", path);
 }
 
 export async function apiPostEmpty<TResponse>(path: string): Promise<TResponse> {
-  return request<TResponse>(path, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
   });
+
+  return parseResponse<TResponse>(response, "POST", path);
+}
+
+export async function apiPut<TResponse, TRequest>(
+  path: string,
+  payload: TRequest
+): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<TResponse>(response, "PUT", path);
+}
+
+export async function apiDelete<TResponse>(path: string): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+  });
+
+  return parseResponse<TResponse>(response, "DELETE", path);
 }
