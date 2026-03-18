@@ -1,11 +1,13 @@
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { fetchSystemSummary } from "./api/queries";
+import { fetchAlerts, fetchSystemSummary } from "./api/queries";
+import AlertsPage from "./pages/AlertsPage";
 import DashboardHomePage from "./pages/DashboardHomePage";
 import ManualControlPage from "./pages/ManualControlPage";
 import OperationsPage from "./pages/OperationsPage";
 import SchedulesPage from "./pages/SchedulesPage";
+import type { AlertsListResponse } from "./types/alerts";
 import type { SystemSummaryResponse } from "./types";
 
 function SidebarNavLink({
@@ -51,9 +53,7 @@ function SidebarNavLink({
       <span>{children}</span>
 
       {badge ? (
-        <span
-          style={({} as React.CSSProperties)}
-        >
+        <span>
           <span
             style={{
               display: "inline-flex",
@@ -131,12 +131,18 @@ function StatusPill({
 
 function Sidebar() {
   const [summary, setSummary] = useState<SystemSummaryResponse | null>(null);
+  const [alerts, setAlerts] = useState<AlertsListResponse | null>(null);
   const [error, setError] = useState(false);
 
-  async function loadSidebarSummary() {
+  async function loadSidebarData() {
     try {
-      const data = await fetchSystemSummary();
-      setSummary(data);
+      const [summaryData, alertsData] = await Promise.all([
+        fetchSystemSummary(),
+        fetchAlerts(),
+      ]);
+
+      setSummary(summaryData);
+      setAlerts(alertsData);
       setError(false);
     } catch {
       setError(true);
@@ -144,8 +150,8 @@ function Sidebar() {
   }
 
   useEffect(() => {
-    void loadSidebarSummary();
-    const interval = window.setInterval(loadSidebarSummary, 5000);
+    void loadSidebarData();
+    const interval = window.setInterval(loadSidebarData, 5000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -154,6 +160,7 @@ function Sidebar() {
   const failed = counts?.commands_failed ?? 0;
   const devices = counts?.device_states ?? 0;
   const telemetry = counts?.telemetry_readings ?? 0;
+  const activeAlerts = alerts?.count ?? 0;
   const platformHealthy =
     summary?.timescale_status.extension_installed &&
     summary?.timescale_status.telemetry_is_hypertable;
@@ -223,7 +230,9 @@ function Sidebar() {
           }}
         >
           <SidebarNavLink to="/">Main Dashboard</SidebarNavLink>
+
           <SidebarNavLink to="/schedules">Schedules</SidebarNavLink>
+
           <SidebarNavLink
             to="/manual-control"
             badge={String(devices)}
@@ -231,12 +240,21 @@ function Sidebar() {
           >
             Manual Control
           </SidebarNavLink>
+
           <SidebarNavLink
             to="/operations"
             badge={failed > 0 ? String(failed) : String(queued)}
             tone={failed > 0 ? "danger" : queued > 0 ? "warning" : "success"}
           >
             Operations
+          </SidebarNavLink>
+
+          <SidebarNavLink
+            to="/alerts"
+            badge={String(activeAlerts)}
+            tone={activeAlerts > 0 ? "danger" : "success"}
+          >
+            Alerts
           </SidebarNavLink>
         </nav>
       </div>
@@ -280,6 +298,11 @@ function Sidebar() {
             label="Failed Commands"
             value={failed.toLocaleString()}
             tone={failed > 0 ? "danger" : "success"}
+          />
+          <StatusPill
+            label="Active Alerts"
+            value={activeAlerts.toLocaleString()}
+            tone={activeAlerts > 0 ? "danger" : "success"}
           />
           <StatusPill
             label="Tracked Devices"
@@ -326,7 +349,7 @@ function Sidebar() {
               lineHeight: 1.5,
             }}
           >
-            Use Main Dashboard for status, Schedules for automation, Manual Control for direct actions, and Operations for audit visibility.
+            Use Main Dashboard for status, Schedules for automation, Manual Control for direct actions, Operations for audit visibility, and Alerts for safety monitoring.
           </div>
         </div>
       </div>
@@ -391,7 +414,7 @@ function AppShell() {
                   marginTop: "4px",
                 }}
               >
-                Aquarium telemetry, device orchestration, automation scheduling, and operational awareness.
+                Aquarium telemetry, device orchestration, automation scheduling, safety monitoring, and operational awareness.
               </div>
             </div>
           </header>
@@ -402,6 +425,7 @@ function AppShell() {
               <Route path="/schedules" element={<SchedulesPage />} />
               <Route path="/manual-control" element={<ManualControlPage />} />
               <Route path="/operations" element={<OperationsPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
             </Routes>
           </main>
         </div>
