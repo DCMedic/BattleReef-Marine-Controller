@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import threading
 import time
@@ -42,9 +44,14 @@ def on_disconnect(client, userdata, disconnect_flags, reason_code, properties=No
 
 
 def _handle_telemetry(payload: dict, db: Session) -> None:
+    reading_time = payload.get("reading_time") or payload.get("timestamp")
+
+    if reading_time is None:
+        raise ValueError("Telemetry payload missing reading_time/timestamp")
+
     telemetry = TelemetryIngestRequest(
         sensor_key=payload["sensor_key"],
-        timestamp=payload["timestamp"],
+        timestamp=reading_time,
         value=payload["value"],
         unit=payload["unit"],
         quality=payload.get("quality", "good"),
@@ -112,6 +119,7 @@ def _handle_ack(payload: dict, db: Session) -> None:
 
 def on_message(client, userdata, msg):
     db: Optional[Session] = None
+    payload: dict = {}
 
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
@@ -126,7 +134,10 @@ def on_message(client, userdata, msg):
 
     except Exception as exc:
         topic = getattr(msg, "topic", "<unknown>")
-        print(f"[MQTT] Processing error for topic '{topic}': {exc}")
+        print(
+            f"[MQTT] Processing error for topic '{topic}': {exc} | "
+            f"payload={json.dumps(payload)}"
+        )
 
     finally:
         if db is not None:
