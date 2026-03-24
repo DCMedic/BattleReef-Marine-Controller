@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { fetchRecentCommands, fetchSystemSummary } from "../api/queries";
 import { DeviceStateTile } from "../components/DeviceStateTile";
 import { RecentCommandsTable } from "../components/RecentCommandsTable";
+import { useBattleReefEventStream } from "../hooks/useBattleReefEventStream";
 import type { CommandListResponse, SystemSummaryResponse } from "../types";
 
 export default function OperationsPage() {
@@ -10,6 +11,8 @@ export default function OperationsPage() {
   const [commands, setCommands] = useState<CommandListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { snapshot, connected, error: streamError } = useBattleReefEventStream();
 
   async function loadData() {
     try {
@@ -34,6 +37,20 @@ export default function OperationsPage() {
     return () => window.clearInterval(interval);
   }, []);
 
+  const liveSummary = snapshot?.summary ?? null;
+  const liveCommands = snapshot?.commands ?? [];
+  const liveDeviceStates = snapshot?.device_states ?? [];
+  const lastUpdated = useMemo(() => {
+    if (!snapshot?.timestamp) {
+      return null;
+    }
+
+    return new Date(snapshot.timestamp).toLocaleString();
+  }, [snapshot]);
+
+  const displayedSummary = liveSummary ?? summary;
+  const displayedCommands = liveCommands.length > 0 ? liveCommands : commands?.items ?? [];
+
   return (
     <div style={{ padding: "24px" }}>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
@@ -42,11 +59,21 @@ export default function OperationsPage() {
             Operations
           </h1>
           <p style={{ marginTop: "8px", color: "#57606a", fontSize: "1rem" }}>
-            Command lifecycle visibility, recent activity, and current device state auditing.
+            Command lifecycle visibility, recent activity, current device state auditing, and live stream monitoring.
           </p>
         </div>
 
-        {loading && !summary ? <div style={{ color: "#57606a" }}>Loading operations data...</div> : null}
+        <div style={{ marginBottom: "24px" }}>
+          <LiveStreamStatusCard
+            connected={connected}
+            lastUpdated={lastUpdated}
+            error={streamError}
+          />
+        </div>
+
+        {loading && !displayedSummary ? (
+          <div style={{ color: "#57606a" }}>Loading operations data...</div>
+        ) : null}
 
         {error ? (
           <div
@@ -63,7 +90,7 @@ export default function OperationsPage() {
           </div>
         ) : null}
 
-        {summary ? (
+        {displayedSummary ? (
           <>
             <div
               style={{
@@ -75,33 +102,33 @@ export default function OperationsPage() {
             >
               <SummaryCard
                 label="Total Commands"
-                value={summary.counts.commands_total}
+                value={displayedSummary.counts.commands_total}
                 tone="default"
               />
               <SummaryCard
                 label="Queued"
-                value={summary.counts.commands_queued}
-                tone={summary.counts.commands_queued > 0 ? "warning" : "success"}
+                value={displayedSummary.counts.commands_queued}
+                tone={displayedSummary.counts.commands_queued > 0 ? "warning" : "success"}
               />
               <SummaryCard
                 label="Dispatched"
-                value={summary.counts.commands_dispatched}
+                value={displayedSummary.counts.commands_dispatched}
                 tone="default"
               />
               <SummaryCard
                 label="Completed"
-                value={summary.counts.commands_completed}
+                value={displayedSummary.counts.commands_completed}
                 tone="success"
               />
               <SummaryCard
                 label="Failed"
-                value={summary.counts.commands_failed}
-                tone={summary.counts.commands_failed > 0 ? "danger" : "success"}
+                value={displayedSummary.counts.commands_failed}
+                tone={displayedSummary.counts.commands_failed > 0 ? "danger" : "success"}
               />
             </div>
 
             <div style={{ marginBottom: "24px" }}>
-              <RecentCommandsTable items={commands?.items ?? []} />
+              <RecentCommandsTable items={displayedCommands} />
             </div>
 
             <div style={{ marginBottom: "12px" }}>
@@ -117,10 +144,22 @@ export default function OperationsPage() {
                 gap: "16px",
               }}
             >
-              {summary.device_states.length === 0 ? (
+              {liveDeviceStates.length === 0 && displayedSummary.device_states.length === 0 ? (
                 <div style={{ color: "#57606a" }}>No device states available.</div>
+              ) : liveDeviceStates.length > 0 ? (
+                liveDeviceStates.map((item) => (
+                  <DeviceStateTile
+                    key={item.device_key}
+                    item={{
+                      device_key: item.device_key,
+                      state_payload: item.state_payload,
+                      state_source: item.state_source,
+                      updated_at: item.updated_at,
+                    }}
+                  />
+                ))
               ) : (
-                summary.device_states.map((item) => (
+                displayedSummary.device_states.map((item) => (
                   <DeviceStateTile key={item.device_key} item={item} />
                 ))
               )}
@@ -129,6 +168,72 @@ export default function OperationsPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function LiveStreamStatusCard({
+  connected,
+  lastUpdated,
+  error,
+}: {
+  connected: boolean;
+  lastUpdated: string | null;
+  error: string | null;
+}) {
+  const tone = !connected
+    ? { bg: "#ffebe9", border: "#ff818266", fg: "#cf222e" }
+    : error
+    ? { bg: "#fff8c5", border: "#d4a72c66", fg: "#9a6700" }
+    : { bg: "#dafbe1", border: "#4ac26b66", fg: "#1a7f37" };
+
+  return (
+    <section
+      style={{
+        background: tone.bg,
+        border: `1px solid ${tone.border}`,
+        borderRadius: "12px",
+        padding: "16px",
+      }}
+    >
+      <div style={{ fontWeight: 800, color: tone.fg, marginBottom: "10px" }}>
+        Live Stream Status
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: "0.8rem", color: tone.fg, fontWeight: 700, marginBottom: "4px" }}>
+            Connection
+          </div>
+          <div style={{ fontSize: "0.95rem", fontWeight: 800, color: tone.fg }}>
+            {connected ? "Connected" : "Disconnected"}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: "0.8rem", color: tone.fg, fontWeight: 700, marginBottom: "4px" }}>
+            Last Update
+          </div>
+          <div style={{ fontSize: "0.95rem", fontWeight: 800, color: tone.fg }}>
+            {lastUpdated ?? "No live update received yet"}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: "0.8rem", color: tone.fg, fontWeight: 700, marginBottom: "4px" }}>
+            Stream Error
+          </div>
+          <div style={{ fontSize: "0.95rem", fontWeight: 800, color: tone.fg }}>
+            {error ?? "None"}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
