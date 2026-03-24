@@ -13,16 +13,35 @@ import type {
 } from "../types";
 import type { AlertsListResponse } from "../types/alerts";
 import type { DeviceStateResponse } from "../types/deviceState";
+import type { TelemetryCatalogResponse } from "../types/telemetryCatalog";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
   "tank_temp_main",
   "tank_ph_main",
   "tank_salinity_main",
   "sump_level_main",
+  "orp_main",
+  "dissolved_oxygen_main",
+  "flow_return_main",
+  "flow_manifold_main",
+  "par_left",
+  "par_center",
+  "par_right",
+  "leak_probe_a",
+  "leak_probe_b",
+  "room_co2_main",
+  "power_monitor_main",
+  "voc_main",
+  "ambient_temp_room",
+  "ambient_humidity_room",
 ];
 
 export async function fetchSystemSummary(): Promise<SystemSummaryResponse> {
   return apiGet<SystemSummaryResponse>("/system/summary");
+}
+
+export async function fetchTelemetryCatalog(): Promise<TelemetryCatalogResponse> {
+  return apiGet<TelemetryCatalogResponse>("/telemetry/catalog");
 }
 
 export async function fetchTelemetryHistory(
