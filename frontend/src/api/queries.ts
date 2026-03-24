@@ -12,6 +12,7 @@ import type {
   TelemetryHistoryResponse,
 } from "../types";
 import type { AlertsListResponse } from "../types/alerts";
+import type { DeviceStateResponse } from "../types/deviceState";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
   "tank_temp_main",
@@ -75,6 +76,10 @@ export async function setDeviceMode(
   mode: "auto" | "manual"
 ): Promise<DeviceStateSummary> {
   return apiPostEmpty<DeviceStateSummary>(`/device-states/${deviceKey}/mode/${mode}`);
+}
+
+export async function fetchDeviceState(deviceKey: string): Promise<DeviceStateResponse> {
+  return apiGet<DeviceStateResponse>(`/device-states/${deviceKey}`);
 }
 
 export async function evaluateScheduleRules(): Promise<{
