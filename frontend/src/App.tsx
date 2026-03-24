@@ -2,6 +2,7 @@ import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { fetchAlerts, fetchSystemSummary } from "./api/queries";
+import GlobalStatusBanner from "./components/GlobalStatusBanner";
 import AlertsPage from "./pages/AlertsPage";
 import DashboardHomePage from "./pages/DashboardHomePage";
 import ManualControlPage from "./pages/ManualControlPage";
@@ -381,6 +382,8 @@ function AppShell() {
             minWidth: 0,
           }}
         >
+          <GlobalStatusBanner />
+
           <header
             style={{
               background: "#ffffff",
