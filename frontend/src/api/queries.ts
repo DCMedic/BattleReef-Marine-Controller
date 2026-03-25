@@ -13,7 +13,12 @@ import type {
 } from "../types";
 import type { AlertsListResponse } from "../types/alerts";
 import type { DeviceStateResponse } from "../types/deviceState";
-import type { ThresholdListResponse, ThresholdConfigItem, ThresholdUpdateRequest } from "../types/thresholds";
+import type {
+  ThresholdConfigItem,
+  ThresholdListResponse,
+  ThresholdPresetListResponse,
+  ThresholdUpdateRequest,
+} from "../types/thresholds";
 import type { TelemetryCatalogResponse } from "../types/telemetryCatalog";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
@@ -124,6 +129,25 @@ export async function clearAllAlerts(): Promise<{ status: string; cleared_count:
 
 export async function fetchThresholds(): Promise<ThresholdListResponse> {
   return apiGet<ThresholdListResponse>("/thresholds");
+}
+
+export async function fetchThresholdPresets(): Promise<ThresholdPresetListResponse> {
+  return apiGet<ThresholdPresetListResponse>("/thresholds/presets");
+}
+
+export async function applyThresholdPreset(
+  presetKey: string
+): Promise<{
+  applied_profile: string;
+  label: string;
+  description: string;
+  threshold_count: number;
+}> {
+  return apiPost("/thresholds/presets/apply", { preset_key: presetKey });
+}
+
+export async function clearActiveThresholdPreset(): Promise<{ active_profile: null }> {
+  return apiDelete<{ active_profile: null }>("/thresholds/presets/active");
 }
 
 export async function updateThreshold(

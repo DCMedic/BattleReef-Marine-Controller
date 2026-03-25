@@ -10,6 +10,7 @@ from app.core.sensor_thresholds import (
     clone_default_thresholds,
     merge_threshold_overrides,
 )
+from app.core.threshold_presets import THRESHOLD_PRESETS
 
 
 class ThresholdConfigService:
@@ -18,6 +19,7 @@ class ThresholdConfigService:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         self.filepath = data_dir / "threshold_overrides.json"
+        self.profile_filepath = data_dir / "threshold_profile.json"
 
     def _read_overrides(self) -> dict[str, dict[str, Any]]:
         if not self.filepath.exists():
@@ -43,6 +45,27 @@ class ThresholdConfigService:
     def _write_overrides(self, overrides: dict[str, dict[str, Any]]) -> None:
         with self.filepath.open("w", encoding="utf-8") as handle:
             json.dump(overrides, handle, indent=2, sort_keys=True)
+
+    def _read_profile(self) -> dict[str, Any]:
+        if not self.profile_filepath.exists():
+            return {"active_profile": None}
+
+        try:
+            with self.profile_filepath.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+
+            if not isinstance(data, dict):
+                return {"active_profile": None}
+
+            return {
+                "active_profile": data.get("active_profile"),
+            }
+        except Exception:
+            return {"active_profile": None}
+
+    def _write_profile(self, active_profile: str | None) -> None:
+        with self.profile_filepath.open("w", encoding="utf-8") as handle:
+            json.dump({"active_profile": active_profile}, handle, indent=2, sort_keys=True)
 
     def list_thresholds(self) -> list[dict[str, Any]]:
         overrides = self._read_overrides()
@@ -72,6 +95,61 @@ class ThresholdConfigService:
     def get_effective_thresholds(self) -> dict[str, dict[str, Any]]:
         overrides = self._read_overrides()
         return merge_threshold_overrides(clone_default_thresholds(), overrides)
+
+    def get_active_profile(self) -> str | None:
+        return self._read_profile().get("active_profile")
+
+    def list_presets(self) -> list[dict[str, Any]]:
+        active_profile = self.get_active_profile()
+
+        items: list[dict[str, Any]] = []
+        for preset_key, preset in THRESHOLD_PRESETS.items():
+            items.append(
+                {
+                    "key": preset_key,
+                    "label": preset["label"],
+                    "description": preset["description"],
+                    "active": preset_key == active_profile,
+                    "threshold_count": len(preset.get("thresholds", {})),
+                }
+            )
+
+        items.sort(key=lambda item: item["label"])
+        return items
+
+    def apply_preset(self, preset_key: str) -> dict[str, Any]:
+        if preset_key not in THRESHOLD_PRESETS:
+            raise ValueError(f"Unknown threshold preset: {preset_key}")
+
+        preset = THRESHOLD_PRESETS[preset_key]
+        preset_thresholds = preset.get("thresholds", {})
+
+        overrides: dict[str, dict[str, Any]] = {}
+
+        for sensor_key, values in preset_thresholds.items():
+            if sensor_key not in DEFAULT_SENSOR_THRESHOLDS:
+                continue
+
+            overrides[sensor_key] = {
+                "min": values.get("min"),
+                "max": values.get("max"),
+                "severity": values.get("severity", DEFAULT_SENSOR_THRESHOLDS[sensor_key].get("severity")),
+                "enabled": values.get("enabled", True),
+            }
+
+        self._write_overrides(overrides)
+        self._write_profile(preset_key)
+
+        return {
+            "applied_profile": preset_key,
+            "label": preset["label"],
+            "description": preset["description"],
+            "threshold_count": len(overrides),
+        }
+
+    def clear_active_profile(self) -> dict[str, Any]:
+        self._write_profile(None)
+        return {"active_profile": None}
 
     def update_threshold(
         self,

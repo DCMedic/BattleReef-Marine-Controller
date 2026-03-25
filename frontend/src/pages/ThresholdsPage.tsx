@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 
-import { fetchThresholds, resetThreshold, updateThreshold } from "../api/queries";
-import type { ThresholdConfigItem, ThresholdListResponse } from "../types/thresholds";
+import {
+  applyThresholdPreset,
+  clearActiveThresholdPreset,
+  fetchThresholdPresets,
+  fetchThresholds,
+  resetThreshold,
+  updateThreshold,
+} from "../api/queries";
+import type {
+  ThresholdConfigItem,
+  ThresholdListResponse,
+  ThresholdPresetItem,
+  ThresholdPresetListResponse,
+} from "../types/thresholds";
 
 type EditableThresholdState = {
   min: string;
@@ -32,6 +44,85 @@ function pageCard(children: React.ReactNode): JSX.Element {
     >
       {children}
     </section>
+  );
+}
+
+function PresetCard({
+  item,
+  onApply,
+  busy,
+}: {
+  item: ThresholdPresetItem;
+  onApply: (presetKey: string) => Promise<void>;
+  busy: boolean;
+}) {
+  return (
+    <article
+      style={{
+        border: item.active ? "1px solid #0969da" : "1px solid #e5e7eb",
+        background: item.active ? "#eff6ff" : "#ffffff",
+        borderRadius: 14,
+        padding: 18,
+      }}
+    >
+      <div style={{ display: "grid", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>{item.label}</div>
+          <div style={{ color: "#6b7280", marginTop: 6, lineHeight: 1.5 }}>{item.description}</div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <span
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 999,
+              padding: "4px 10px",
+              fontSize: 12,
+              fontWeight: 700,
+              background: "#f9fafb",
+              color: "#374151",
+            }}
+          >
+            {item.threshold_count} thresholds
+          </span>
+
+          {item.active ? (
+            <span
+              style={{
+                border: "1px solid #93c5fd",
+                borderRadius: 999,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 700,
+                background: "#dbeafe",
+                color: "#1d4ed8",
+              }}
+            >
+              Active
+            </span>
+          ) : null}
+        </div>
+
+        <div>
+          <button
+            onClick={() => void onApply(item.key)}
+            disabled={busy}
+            style={{
+              border: "1px solid #0969da",
+              borderRadius: 10,
+              padding: "10px 14px",
+              background: item.active ? "#ffffff" : "#0969da",
+              color: item.active ? "#0969da" : "#ffffff",
+              fontWeight: 700,
+              cursor: busy ? "not-allowed" : "pointer",
+              opacity: busy ? 0.7 : 1,
+            }}
+          >
+            {item.active ? "Reapply Preset" : "Apply Preset"}
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -261,12 +352,20 @@ function ThresholdCard({
 
 export default function ThresholdsPage() {
   const [data, setData] = useState<ThresholdListResponse | null>(null);
+  const [presets, setPresets] = useState<ThresholdPresetListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [presetBusy, setPresetBusy] = useState(false);
+  const [presetMessage, setPresetMessage] = useState<string | null>(null);
 
   async function load() {
     try {
-      const response = await fetchThresholds();
-      setData(response);
+      const [thresholdResponse, presetResponse] = await Promise.all([
+        fetchThresholds(),
+        fetchThresholdPresets(),
+      ]);
+
+      setData(thresholdResponse);
+      setPresets(presetResponse);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load threshold configuration");
@@ -307,6 +406,36 @@ export default function ThresholdsPage() {
     await load();
   }
 
+  async function handleApplyPreset(presetKey: string) {
+    setPresetBusy(true);
+    setPresetMessage(null);
+
+    try {
+      const result = await applyThresholdPreset(presetKey);
+      setPresetMessage(`Applied preset: ${result.label}.`);
+      await load();
+    } catch (err) {
+      setPresetMessage(err instanceof Error ? err.message : "Failed to apply preset");
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function handleClearPreset() {
+    setPresetBusy(true);
+    setPresetMessage(null);
+
+    try {
+      await clearActiveThresholdPreset();
+      setPresetMessage("Cleared active preset marker. Existing overrides remain in place.");
+      await load();
+    } catch (err) {
+      setPresetMessage(err instanceof Error ? err.message : "Failed to clear active preset");
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
   return (
     <div style={{ display: "grid", gap: 16, padding: 24, maxWidth: 1400, margin: "0 auto" }}>
       {pageCard(
@@ -314,7 +443,7 @@ export default function ThresholdsPage() {
           <h1 style={{ margin: 0, fontSize: 28 }}>Threshold Configuration</h1>
           <p style={{ margin: "8px 0 0 0", color: "#4b5563", lineHeight: 1.6 }}>
             Tune sensor-specific alert thresholds without editing environment variables or code.
-            Changes are stored as backend overrides and applied automatically by the safety watchdog.
+            Apply presets for common system types, then fine-tune individual boundaries as needed.
           </p>
         </div>
       )}
@@ -332,6 +461,82 @@ export default function ThresholdsPage() {
           {error}
         </section>
       ) : null}
+
+      {pageCard(
+        <div style={{ display: "grid", gap: 16 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22 }}>Threshold Presets</h2>
+            <p style={{ margin: "8px 0 0 0", color: "#6b7280", lineHeight: 1.6 }}>
+              Switch operational baselines in one click for different aquarium system types.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <span
+              style={{
+                border: "1px solid #d1d5db",
+                borderRadius: 999,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 700,
+                background: "#f9fafb",
+                color: "#374151",
+              }}
+            >
+              Active profile: {presets?.active_profile ?? "none"}
+            </span>
+
+            <button
+              onClick={() => void handleClearPreset()}
+              disabled={presetBusy}
+              style={{
+                border: "1px solid #d1d5db",
+                borderRadius: 10,
+                padding: "10px 14px",
+                background: "#ffffff",
+                color: "#111827",
+                fontWeight: 700,
+                cursor: presetBusy ? "not-allowed" : "pointer",
+                opacity: presetBusy ? 0.7 : 1,
+              }}
+            >
+              Clear Active Profile Marker
+            </button>
+          </div>
+
+          {presetMessage ? (
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: "#f9fafb",
+                color: "#374151",
+                fontWeight: 600,
+              }}
+            >
+              {presetMessage}
+            </div>
+          ) : null}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {(presets?.items ?? []).map((item) => (
+              <PresetCard
+                key={item.key}
+                item={item}
+                onApply={handleApplyPreset}
+                busy={presetBusy}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 16 }}>
         {(data?.items ?? []).map((item) => (

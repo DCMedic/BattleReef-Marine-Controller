@@ -14,6 +14,7 @@ export interface ThresholdConfigItem {
 export interface ThresholdListResponse {
   items: ThresholdConfigItem[];
   count: number;
+  active_profile: string | null;
 }
 
 export interface ThresholdUpdateRequest {
@@ -21,4 +22,18 @@ export interface ThresholdUpdateRequest {
   max: number | null;
   severity: "warning" | "critical";
   enabled: boolean;
+}
+
+export interface ThresholdPresetItem {
+  key: string;
+  label: string;
+  description: string;
+  active: boolean;
+  threshold_count: number;
+}
+
+export interface ThresholdPresetListResponse {
+  items: ThresholdPresetItem[];
+  count: number;
+  active_profile: string | null;
 }
