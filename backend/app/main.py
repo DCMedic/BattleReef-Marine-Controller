@@ -21,6 +21,7 @@ from app.api.routes import (
 )
 from app.core.api_self_test import run_api_self_test
 from app.db.session import SessionLocal
+from app.mqtt.mqtt_listener import start_mqtt_listener
 from app.services.command_dispatcher import start_command_dispatcher
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def run_startup_checks() -> None:
         run_api_self_test(app)
+        start_mqtt_listener()
         start_schedule_loop()
         start_command_dispatcher()
         start_safety_watchdog_loop()
