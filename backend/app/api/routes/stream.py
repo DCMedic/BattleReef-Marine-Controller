@@ -27,14 +27,12 @@ def build_stream_snapshot(db: Session) -> dict[str, object]:
     commands = command_service.list_recent(limit=10)
     device_states = device_state_service.list_recent(limit=20)
 
-    payload = {
+    return {
         "timestamp": datetime.now(timezone.utc),
         "summary": jsonable_encoder(summary),
         "commands": jsonable_encoder(commands),
         "device_states": jsonable_encoder(device_states),
     }
-
-    return payload
 
 
 @router.get("", summary="Get stream service status")
@@ -69,14 +67,12 @@ async def stream_events() -> StreamingResponse:
             try:
                 payload = build_stream_snapshot(db)
                 yield f"event: battlereef_update\ndata: {json.dumps(jsonable_encoder(payload))}\n\n"
-
             except Exception as exc:
                 error_payload = {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "error": str(exc),
                 }
                 yield f"event: battlereef_error\ndata: {json.dumps(error_payload)}\n\n"
-
             finally:
                 db.close()
 
