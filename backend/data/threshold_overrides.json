@@ -2,13 +2,49 @@
   "dissolved_oxygen_main": {
     "enabled": true,
     "max": null,
-    "min": 6.5,
+    "min": 6.0,
     "severity": "critical"
   },
   "flow_manifold_main": {
     "enabled": true,
-    "max": 900.0,
+    "max": null,
     "min": 150.0,
+    "severity": "warning"
+  },
+  "flow_return_main": {
+    "enabled": true,
+    "max": null,
+    "min": 500.0,
+    "severity": "critical"
+  },
+  "orp_main": {
+    "enabled": true,
+    "max": 450.0,
+    "min": 300.0,
+    "severity": "warning"
+  },
+  "par_center": {
+    "enabled": true,
+    "max": 400.0,
+    "min": 100.0,
+    "severity": "warning"
+  },
+  "par_left": {
+    "enabled": true,
+    "max": 350.0,
+    "min": 80.0,
+    "severity": "warning"
+  },
+  "par_right": {
+    "enabled": true,
+    "max": 350.0,
+    "min": 80.0,
+    "severity": "warning"
+  },
+  "room_co2_main": {
+    "enabled": true,
+    "max": 1200.0,
+    "min": null,
     "severity": "warning"
   }
 }
