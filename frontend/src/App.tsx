@@ -11,6 +11,8 @@ import SchedulesPage from "./pages/SchedulesPage";
 import ThresholdsPage from "./pages/ThresholdsPage";
 import type { AlertsListResponse } from "./types/alerts";
 import type { SystemSummaryResponse } from "./types";
+import SensorTrendDetailPage from "./pages/SensorTrendDetailPage";
+import SensorTrendsPage from "./pages/SensorTrendsPage";
 
 function SidebarNavLink({
   to,
@@ -233,6 +235,8 @@ function Sidebar() {
         >
           <SidebarNavLink to="/">Main Dashboard</SidebarNavLink>
 
+          <SidebarNavLink to="/sensor-trends">Sensor Trends</SidebarNavLink>
+
           <SidebarNavLink to="/schedules">Schedules</SidebarNavLink>
 
           <SidebarNavLink
@@ -433,6 +437,8 @@ function AppShell() {
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/thresholds" element={<ThresholdsPage />} />
+              <Route path="/sensor-trends" element={<SensorTrendsPage />} />
+              <Route path="/sensor-trends/:sensorKey" element={<SensorTrendDetailPage />} />
             </Routes>
           </main>
         </div>

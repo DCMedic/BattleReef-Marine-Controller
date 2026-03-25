@@ -1,62 +1,217 @@
-from sqlalchemy import select
+from __future__ import annotations
+
+import math
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session
 
-from app.db.models.telemetry import TelemetryReading
-from app.schemas.telemetry import TelemetryHistoryPoint, TelemetryHistorySeries, TelemetryIngestRequest
+from app.db.models.telemetry import TelemetryRecord
+from app.schemas.telemetry import TelemetryIngestRequest
+
+
+def _parse_timestamp(value: str) -> datetime:
+    normalized = value.replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _record_numeric_value(record: TelemetryRecord) -> float | None:
+    if getattr(record, "value_double", None) is not None:
+        return float(record.value_double)
+
+    value_text = getattr(record, "value_text", None)
+    if value_text is None:
+        return None
+
+    normalized = str(value_text).strip().lower()
+    if normalized == "dry":
+        return 0.0
+    if normalized == "wet":
+        return 1.0
+
+    try:
+        return float(normalized)
+    except ValueError:
+        return None
 
 
 class TelemetryService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session):
         self.db = db
+        self.model = TelemetryRecord
 
-    def ingest(self, payload: TelemetryIngestRequest) -> TelemetryReading:
-        record = TelemetryReading(
-            reading_time=payload.timestamp,
+    def ingest(self, payload: TelemetryIngestRequest) -> TelemetryRecord:
+        parsed_time = _parse_timestamp(payload.timestamp)
+
+        numeric_value: float | None = None
+        text_value: str | None = None
+
+        if isinstance(payload.value, (int, float)):
+            numeric_value = float(payload.value)
+        else:
+            text_value = str(payload.value)
+
+        record = self.model(
             sensor_key=payload.sensor_key,
             source_node=payload.source_node,
-            value_double=payload.value,
+            reading_time=parsed_time,
+            value_double=numeric_value,
+            value_text=text_value,
             unit=payload.unit,
             quality=payload.quality,
         )
+
         self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
         return record
 
-    def latest(self, limit: int = 100) -> list[TelemetryReading]:
-        stmt = (
-            select(TelemetryReading)
-            .order_by(TelemetryReading.reading_time.desc())
+    def latest(self, limit: int = 100) -> list[TelemetryRecord]:
+        return (
+            self.db.query(self.model)
+            .order_by(desc(self.model.reading_time))
             .limit(limit)
-        )
-        return list(self.db.scalars(stmt).all())
-
-    def latest_by_sensor(self, sensor_key: str, limit: int = 100) -> list[TelemetryReading]:
-        stmt = (
-            select(TelemetryReading)
-            .where(TelemetryReading.sensor_key == sensor_key)
-            .order_by(TelemetryReading.reading_time.desc())
-            .limit(limit)
-        )
-        return list(self.db.scalars(stmt).all())
-
-    def history_for_sensor(self, sensor_key: str, limit: int = 120) -> TelemetryHistorySeries:
-        rows = self.latest_by_sensor(sensor_key=sensor_key, limit=limit)
-        rows = list(reversed(rows))
-
-        unit = rows[-1].unit if rows else ""
-
-        return TelemetryHistorySeries(
-            sensor_key=sensor_key,
-            unit=unit,
-            points=[
-                TelemetryHistoryPoint(
-                    timestamp=row.reading_time,
-                    value=row.value_double,
-                )
-                for row in rows
-            ],
+            .all()
         )
 
-    def history_for_sensors(self, sensor_keys: list[str], limit: int = 120) -> list[TelemetryHistorySeries]:
-        return [self.history_for_sensor(sensor_key=sensor_key, limit=limit) for sensor_key in sensor_keys]
+    def history_for_sensors(self, sensor_keys: list[str], limit: int = 120) -> dict[str, list[dict[str, Any]]]:
+        if not sensor_keys:
+            return {}
+
+        records = (
+            self.db.query(self.model)
+            .filter(self.model.sensor_key.in_(sensor_keys))
+            .order_by(desc(self.model.reading_time))
+            .limit(max(limit * len(sensor_keys), limit))
+            .all()
+        )
+
+        grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+        for record in records:
+            grouped[record.sensor_key].append(
+                {
+                    "timestamp": record.reading_time.isoformat(),
+                    "value": _record_numeric_value(record),
+                    "unit": record.unit,
+                    "quality": record.quality,
+                }
+            )
+
+        final: dict[str, list[dict[str, Any]]] = {}
+        for sensor_key in sensor_keys:
+            points = list(reversed(grouped.get(sensor_key, [])[:limit]))
+            final[sensor_key] = points
+
+        return final
+
+    def window_for_sensor(
+        self,
+        *,
+        sensor_key: str,
+        days: int = 3,
+        max_points: int = 288,
+        end_time: datetime | None = None,
+    ) -> dict[str, Any]:
+        if end_time is None:
+            end_time = datetime.now(timezone.utc)
+
+        start_time = end_time - timedelta(days=days)
+
+        records = (
+            self.db.query(self.model)
+            .filter(self.model.sensor_key == sensor_key)
+            .filter(self.model.reading_time >= start_time)
+            .filter(self.model.reading_time <= end_time)
+            .order_by(asc(self.model.reading_time))
+            .all()
+        )
+
+        if not records:
+            return {
+                "sensor_key": sensor_key,
+                "unit": None,
+                "days": days,
+                "max_points": max_points,
+                "points": [],
+                "latest_value": None,
+                "latest_timestamp": None,
+                "min_value": None,
+                "max_value": None,
+            }
+
+        unit = records[-1].unit
+        normalized_points = [
+            {
+                "timestamp": record.reading_time.isoformat(),
+                "value": _record_numeric_value(record),
+            }
+            for record in records
+            if _record_numeric_value(record) is not None
+        ]
+
+        if not normalized_points:
+            return {
+                "sensor_key": sensor_key,
+                "unit": unit,
+                "days": days,
+                "max_points": max_points,
+                "points": [],
+                "latest_value": None,
+                "latest_timestamp": None,
+                "min_value": None,
+                "max_value": None,
+            }
+
+        reduced_points = self._downsample_points(normalized_points, max_points=max_points)
+
+        values = [float(point["value"]) for point in reduced_points]
+
+        return {
+            "sensor_key": sensor_key,
+            "unit": unit,
+            "days": days,
+            "max_points": max_points,
+            "points": reduced_points,
+            "latest_value": reduced_points[-1]["value"],
+            "latest_timestamp": reduced_points[-1]["timestamp"],
+            "min_value": min(values),
+            "max_value": max(values),
+        }
+
+    def _downsample_points(
+        self,
+        points: list[dict[str, Any]],
+        *,
+        max_points: int,
+    ) -> list[dict[str, Any]]:
+        if len(points) <= max_points:
+            return points
+
+        bucket_size = len(points) / max_points
+        reduced: list[dict[str, Any]] = []
+
+        for bucket_index in range(max_points):
+            start = int(math.floor(bucket_index * bucket_size))
+            end = int(math.floor((bucket_index + 1) * bucket_size))
+            bucket = points[start:end] if end > start else [points[start]]
+
+            if not bucket:
+                continue
+
+            avg_value = sum(float(item["value"]) for item in bucket) / len(bucket)
+            timestamp = bucket[-1]["timestamp"]
+
+            reduced.append(
+                {
+                    "timestamp": timestamp,
+                    "value": round(avg_value, 3),
+                }
+            )
+
+        return reduced

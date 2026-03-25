@@ -20,6 +20,7 @@ import type {
   ThresholdUpdateRequest,
 } from "../types/thresholds";
 import type { TelemetryCatalogResponse } from "../types/telemetryCatalog";
+import type { TelemetryWindowResponse } from "../types/telemetryTrends";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
   "tank_temp_main",
@@ -159,4 +160,18 @@ export async function updateThreshold(
 
 export async function resetThreshold(sensorKey: string): Promise<ThresholdConfigItem> {
   return apiDelete<ThresholdConfigItem>(`/thresholds/${sensorKey}`);
+}
+
+export async function fetchTelemetryWindow(
+  sensorKey: string,
+  days = 3,
+  maxPoints = 288
+): Promise<TelemetryWindowResponse> {
+  const params = new URLSearchParams({
+    sensor_key: sensorKey,
+    days: String(days),
+    max_points: String(maxPoints),
+  });
+
+  return apiGet<TelemetryWindowResponse>(`/telemetry/window?${params.toString()}`);
 }

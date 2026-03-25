@@ -39,7 +39,7 @@ def get_latest_telemetry(
                 sensor_key=record.sensor_key,
                 source_node=record.source_node,
                 timestamp=record.reading_time,
-                value=record.value_double,
+                value=record.value_double if record.value_double is not None else record.value_text,
                 unit=record.unit,
                 quality=record.quality,
             )
@@ -60,3 +60,18 @@ def get_telemetry_history(
     series = service.history_for_sensors(sensor_keys=requested_keys, limit=limit)
 
     return TelemetryHistoryResponse(series=series)
+
+
+@router.get("/window")
+def get_telemetry_window(
+    sensor_key: str = Query(...),
+    days: int = Query(default=3, ge=1, le=365),
+    max_points: int = Query(default=288, ge=24, le=2000),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    service = TelemetryService(db)
+    return service.window_for_sensor(
+        sensor_key=sensor_key,
+        days=days,
+        max_points=max_points,
+    )
