@@ -8,6 +8,7 @@ import DashboardHomePage from "./pages/DashboardHomePage";
 import ManualControlPage from "./pages/ManualControlPage";
 import OperationsPage from "./pages/OperationsPage";
 import SchedulesPage from "./pages/SchedulesPage";
+import ThresholdsPage from "./pages/ThresholdsPage";
 import type { AlertsListResponse } from "./types/alerts";
 import type { SystemSummaryResponse } from "./types";
 
@@ -257,6 +258,8 @@ function Sidebar() {
           >
             Alerts
           </SidebarNavLink>
+
+          <SidebarNavLink to="/thresholds">Thresholds</SidebarNavLink>
         </nav>
       </div>
 
@@ -350,7 +353,7 @@ function Sidebar() {
               lineHeight: 1.5,
             }}
           >
-            Use Main Dashboard for status, Schedules for automation, Manual Control for direct actions, Operations for audit visibility, and Alerts for safety monitoring.
+            Use Main Dashboard for status, Schedules for automation, Manual Control for direct actions, Operations for audit visibility, Alerts for safety monitoring, and Thresholds to tune sensor alarms.
           </div>
         </div>
       </div>
@@ -429,6 +432,7 @@ function AppShell() {
               <Route path="/manual-control" element={<ManualControlPage />} />
               <Route path="/operations" element={<OperationsPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/thresholds" element={<ThresholdsPage />} />
             </Routes>
           </main>
         </div>

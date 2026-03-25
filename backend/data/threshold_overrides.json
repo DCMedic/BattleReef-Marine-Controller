@@ -1,0 +1,14 @@
+{
+  "dissolved_oxygen_main": {
+    "enabled": true,
+    "max": null,
+    "min": 6.5,
+    "severity": "critical"
+  },
+  "flow_manifold_main": {
+    "enabled": true,
+    "max": 900.0,
+    "min": 150.0,
+    "severity": "warning"
+  }
+}

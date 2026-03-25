@@ -7,10 +7,11 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.runtime_alerts import runtime_alerts
-from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE, LEAK_SENSOR_KEYS, SENSOR_THRESHOLDS
+from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE, LEAK_SENSOR_KEYS
 from app.schemas.command import CommandCreateRequest
 from app.services.command_service import CommandService
 from app.services.telemetry_service import TelemetryService
+from app.services.threshold_config_service import ThresholdConfigService
 
 
 class SafetyWatchdogService:
@@ -21,18 +22,15 @@ class SafetyWatchdogService:
     - High temperature heater cutoff
     - Low sump level return pump shutdown
     - Telemetry stale detection
-    - ORP threshold monitoring
-    - Dissolved oxygen threshold monitoring
-    - Room CO2 threshold monitoring
+    - UI-configurable threshold monitoring
     - Leak probe monitoring
-    - Flow threshold monitoring
-    - PAR threshold monitoring
     """
 
     def __init__(self, db: Session):
         self.db = db
         self.telemetry_service = TelemetryService(db)
         self.command_service = CommandService(db)
+        self.threshold_service = ThresholdConfigService()
 
         self.heater_device_key = os.getenv("HEATER_DEVICE_NAME", "heater_main")
         self.return_pump_device_key = os.getenv("RETURN_PUMP_DEVICE_NAME", "return_pump_main")
@@ -218,8 +216,17 @@ class SafetyWatchdogService:
 
     def _check_threshold_sensors(self, latest_by_sensor: dict[str, Any]) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
+        thresholds = self.threshold_service.get_effective_thresholds()
 
-        for sensor_key, config in SENSOR_THRESHOLDS.items():
+        for sensor_key, config in thresholds.items():
+            if not bool(config.get("enabled", True)):
+                runtime_alerts.clear(f"threshold_{sensor_key}")
+                results.append({
+                    "check": sensor_key,
+                    "status": "disabled",
+                })
+                continue
+
             record = latest_by_sensor.get(sensor_key)
 
             if record is None:
@@ -232,9 +239,9 @@ class SafetyWatchdogService:
             value = float(record.value_double)
             min_value = config.get("min")
             max_value = config.get("max")
-            severity = config["severity"]
-            label = config["label"]
-            unit = config["unit"]
+            severity = config.get("severity", "warning")
+            label = config.get("label", sensor_key)
+            unit = config.get("unit")
 
             too_low = min_value is not None and value < min_value
             too_high = max_value is not None and value > max_value

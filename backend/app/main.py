@@ -18,6 +18,7 @@ from app.api.routes import (
     system,
     tanks,
     telemetry,
+    thresholds,
 )
 from app.core.api_self_test import run_api_self_test
 from app.db.session import SessionLocal
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     api_v1.include_router(tanks.router)
     api_v1.include_router(telemetry.router)
     api_v1.include_router(devices.router)
+    api_v1.include_router(thresholds.router)
 
     app.include_router(api_v1)
 

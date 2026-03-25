@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import type { AlertsListResponse } from "../types/alerts";
 import type { DeviceStateResponse } from "../types/deviceState";
+import type { ThresholdListResponse, ThresholdConfigItem, ThresholdUpdateRequest } from "../types/thresholds";
 import type { TelemetryCatalogResponse } from "../types/telemetryCatalog";
 
 const DEFAULT_HISTORY_SENSOR_KEYS = [
@@ -119,4 +120,19 @@ export async function clearAlert(alertKey: string): Promise<{ status: string; cl
 
 export async function clearAllAlerts(): Promise<{ status: string; cleared_count: number }> {
   return apiDelete<{ status: string; cleared_count: number }>("/alerts");
+}
+
+export async function fetchThresholds(): Promise<ThresholdListResponse> {
+  return apiGet<ThresholdListResponse>("/thresholds");
+}
+
+export async function updateThreshold(
+  sensorKey: string,
+  payload: ThresholdUpdateRequest
+): Promise<ThresholdConfigItem> {
+  return apiPut<ThresholdConfigItem, ThresholdUpdateRequest>(`/thresholds/${sensorKey}`, payload);
+}
+
+export async function resetThreshold(sensorKey: string): Promise<ThresholdConfigItem> {
+  return apiDelete<ThresholdConfigItem>(`/thresholds/${sensorKey}`);
 }
