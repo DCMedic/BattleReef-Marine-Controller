@@ -9,6 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
 
+from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal, get_db
 from app.services.command_service import CommandService
 from app.services.device_state_service import DeviceStateService
@@ -26,12 +27,14 @@ def build_stream_snapshot(db: Session) -> dict[str, object]:
     summary = system_service.get_summary()
     commands = command_service.list_recent(limit=10)
     device_states = device_state_service.list_recent(limit=20)
+    alerts = runtime_alerts.list_active()
 
     return {
         "timestamp": datetime.now(timezone.utc),
         "summary": jsonable_encoder(summary),
         "commands": jsonable_encoder(commands),
         "device_states": jsonable_encoder(device_states),
+        "alerts": jsonable_encoder(alerts),
     }
 
 

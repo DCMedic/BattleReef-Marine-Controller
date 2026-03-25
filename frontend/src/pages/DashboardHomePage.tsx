@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  fetchAlerts,
-  fetchSystemSummary,
-  fetchTelemetryCatalog,
-  fetchTelemetryHistory,
-} from "../api/queries";
+import { fetchTelemetryCatalog, fetchTelemetryHistory } from "../api/queries";
 import AlertsSummaryCard from "../components/AlertsSummaryCard";
-import type { RuntimeAlert } from "../types/alerts";
-import type { SystemSummaryResponse, TelemetryHistoryResponse } from "../types";
+import LiveStreamStatusCard from "../components/LiveStreamStatusCard";
+import { useBattleReefEventStream } from "../hooks/useBattleReefEventStream";
+import type { TelemetryHistoryResponse } from "../types";
 import type {
   TelemetryCatalogItem,
   TelemetryCatalogResponse,
@@ -51,12 +47,40 @@ function categoryTitle(category: string): string {
   }
 }
 
-function latestReading(summary: SystemSummaryResponse | null, sensorKey: string) {
-  return summary?.latest_readings.find((item) => item.sensor_key === sensorKey) ?? null;
+function latestReading(summary: any, sensorKey: string) {
+  return summary?.latest_readings?.find((item: any) => item.sensor_key === sensorKey) ?? null;
+}
+
+function readingTone(sensorKey: string, valueRaw: string): React.CSSProperties {
+  const numericValue = Number(valueRaw);
+
+  if (sensorKey.startsWith("leak_probe")) {
+    const normal = valueRaw.toLowerCase() === "dry";
+    return normal
+      ? { borderColor: "#a7f3d0", background: "#ecfdf5" }
+      : { borderColor: "#fecdd3", background: "#fff1f2" };
+  }
+
+  if (!Number.isNaN(numericValue)) {
+    if (sensorKey === "dissolved_oxygen_main" && numericValue < 6) {
+      return { borderColor: "#fecdd3", background: "#fff1f2" };
+    }
+    if (sensorKey === "room_co2_main" && numericValue > 1200) {
+      return { borderColor: "#fde68a", background: "#fffbeb" };
+    }
+    if (sensorKey === "flow_return_main" && numericValue < 500) {
+      return { borderColor: "#fecdd3", background: "#fff1f2" };
+    }
+    if (sensorKey === "flow_manifold_main" && numericValue < 150) {
+      return { borderColor: "#fde68a", background: "#fffbeb" };
+    }
+  }
+
+  return { borderColor: "#e5e7eb", background: "#ffffff" };
 }
 
 function renderValue(
-  summary: SystemSummaryResponse | null,
+  summary: any,
   history: TelemetryHistoryResponse | null,
   sensor: TelemetryCatalogItem
 ): { value: string; subtitle: string } {
@@ -86,18 +110,19 @@ function renderValue(
 }
 
 function sensorCard(
-  summary: SystemSummaryResponse | null,
+  summary: any,
   history: TelemetryHistoryResponse | null,
   sensor: TelemetryCatalogItem
 ): JSX.Element {
   const { value, subtitle } = renderValue(summary, history, sensor);
+  const tone = readingTone(sensor.sensor_key, value.split(" ")[0] ?? value);
 
   return (
     <article
       key={sensor.sensor_key}
       style={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
+        border: `1px solid ${tone.borderColor}`,
+        background: tone.background,
         borderRadius: 16,
         padding: 18,
         boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
@@ -112,11 +137,14 @@ function sensorCard(
 }
 
 export default function DashboardHomePage() {
-  const [summary, setSummary] = useState<SystemSummaryResponse | null>(null);
   const [history, setHistory] = useState<TelemetryHistoryResponse | null>(null);
   const [catalog, setCatalog] = useState<TelemetryCatalogResponse | null>(null);
-  const [alerts, setAlerts] = useState<RuntimeAlert[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
+
+  const { snapshot, connected, error: streamError } = useBattleReefEventStream();
+
+  const summary = snapshot?.summary ?? null;
+  const alerts = snapshot?.alerts ?? [];
 
   const generatedAt = useMemo(() => {
     if (!summary?.generated_at) {
@@ -125,6 +153,14 @@ export default function DashboardHomePage() {
 
     return new Date(summary.generated_at).toLocaleString();
   }, [summary]);
+
+  const lastUpdated = useMemo(() => {
+    if (!snapshot?.timestamp) {
+      return null;
+    }
+
+    return new Date(snapshot.timestamp).toLocaleString();
+  }, [snapshot]);
 
   const groupedSensors = useMemo(() => {
     const items = catalog?.items ?? [];
@@ -140,35 +176,30 @@ export default function DashboardHomePage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadStaticData() {
       try {
-        const [summaryResponse, historyResponse, catalogResponse, alertsResponse] =
-          await Promise.all([
-            fetchSystemSummary(),
-            fetchTelemetryHistory(),
-            fetchTelemetryCatalog(),
-            fetchAlerts(),
-          ]);
+        const [historyResponse, catalogResponse] = await Promise.all([
+          fetchTelemetryHistory(),
+          fetchTelemetryCatalog(),
+        ]);
 
         if (!cancelled) {
-          setSummary(summaryResponse);
           setHistory(historyResponse);
           setCatalog(catalogResponse);
-          setAlerts(alertsResponse.items);
-          setError(null);
+          setFallbackError(null);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load dashboard");
+          setFallbackError(err instanceof Error ? err.message : "Failed to load dashboard support data");
         }
       }
     }
 
-    void load();
+    void loadStaticData();
 
     const timer = window.setInterval(() => {
-      void load();
-    }, 5000);
+      void loadStaticData();
+    }, 15000);
 
     return () => {
       cancelled = true;
@@ -187,7 +218,9 @@ export default function DashboardHomePage() {
         </div>
       )}
 
-      {error ? (
+      <LiveStreamStatusCard connected={connected} lastUpdated={lastUpdated} error={streamError} />
+
+      {fallbackError ? (
         <section
           style={{
             background: "#fff1f2",
@@ -197,7 +230,7 @@ export default function DashboardHomePage() {
             color: "#9f1239",
           }}
         >
-          {error}
+          {fallbackError}
         </section>
       ) : null}
 
@@ -231,7 +264,7 @@ export default function DashboardHomePage() {
           >
             <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Timescale Extension</div>
             <div style={{ fontSize: 26, fontWeight: 800, marginTop: 8 }}>
-              {summary?.timescale_status.extension_installed ? "Healthy" : "Missing"}
+              {summary?.timescale_status?.extension_installed ? "Healthy" : "Missing"}
             </div>
           </article>
 
@@ -245,7 +278,7 @@ export default function DashboardHomePage() {
           >
             <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Telemetry Hypertable</div>
             <div style={{ fontSize: 26, fontWeight: 800, marginTop: 8 }}>
-              {summary?.timescale_status.telemetry_is_hypertable ? "Healthy" : "Check"}
+              {summary?.timescale_status?.telemetry_is_hypertable ? "Healthy" : "Check"}
             </div>
           </article>
 
