@@ -15,22 +15,25 @@ from app.schemas.telemetry import TelemetryIngestRequest
 def _parse_timestamp(value: str) -> datetime:
     normalized = value.replace("Z", "+00:00")
     parsed = datetime.fromisoformat(normalized)
+
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
+
     return parsed.astimezone(timezone.utc)
 
 
 def _record_numeric_value(record: TelemetryRecord) -> float | None:
-    if getattr(record, "value_double", None) is not None:
+    if record.value_double is not None:
         return float(record.value_double)
 
-    value_text = getattr(record, "value_text", None)
-    if value_text is None:
+    if record.value_text is None:
         return None
 
-    normalized = str(value_text).strip().lower()
+    normalized = str(record.value_text).strip().lower()
+
     if normalized == "dry":
         return 0.0
+
     if normalized == "wet":
         return 1.0
 
@@ -79,7 +82,11 @@ class TelemetryService:
             .all()
         )
 
-    def history_for_sensors(self, sensor_keys: list[str], limit: int = 120) -> dict[str, list[dict[str, Any]]]:
+    def history_for_sensors(
+        self,
+        sensor_keys: list[str],
+        limit: int = 120,
+    ) -> dict[str, list[dict[str, Any]]]:
         if not sensor_keys:
             return {}
 
@@ -104,6 +111,7 @@ class TelemetryService:
             )
 
         final: dict[str, list[dict[str, Any]]] = {}
+
         for sensor_key in sensor_keys:
             points = list(reversed(grouped.get(sensor_key, [])[:limit]))
             final[sensor_key] = points
@@ -146,6 +154,7 @@ class TelemetryService:
             }
 
         unit = records[-1].unit
+
         normalized_points = [
             {
                 "timestamp": record.reading_time.isoformat(),
@@ -169,7 +178,6 @@ class TelemetryService:
             }
 
         reduced_points = self._downsample_points(normalized_points, max_points=max_points)
-
         values = [float(point["value"]) for point in reduced_points]
 
         return {
