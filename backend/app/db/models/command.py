@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
 
+
 class CommandRecord(Base):
     __tablename__ = "commands"
 

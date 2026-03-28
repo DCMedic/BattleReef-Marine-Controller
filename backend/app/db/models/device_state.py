@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
 
+
 class DeviceStateRecord(Base):
     __tablename__ = "device_states"
 
