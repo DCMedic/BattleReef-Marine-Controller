@@ -4,8 +4,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
-
+from app.db.session import Base
 
 class ScheduleRecord(Base):
     __tablename__ = "schedules"
