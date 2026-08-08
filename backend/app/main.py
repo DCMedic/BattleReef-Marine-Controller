@@ -22,6 +22,7 @@ from app.api.routes import (
 )
 from app.config import get_settings
 from app.core.api_self_test import run_api_self_test
+from app.db.schema import ensure_database_schema
 from app.db.session import SessionLocal
 from app.services.command_dispatcher import start_command_dispatcher
 from app.services.mqtt_listener import start_mqtt_listener
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def run_startup_checks() -> None:
+        ensure_database_schema()
         run_api_self_test(app)
         start_mqtt_listener()
         start_schedule_loop()
