@@ -107,19 +107,25 @@ jobs:
           exit 1
       - name: Verify authenticated client succeeds
         run: |
-          docker exec battlereef-mosquitto mosquitto_pub \
-            -h localhost -p 8883 \
-            --cafile /mosquitto/certs/ca.crt \
-            --cert /mosquitto/certs/battlereef-backend.crt \
-            --key /mosquitto/certs/battlereef-backend.key \
+          docker run --rm --user 0:0 \
+            --network battlereef-marine-controller_default \
+            -v "$PWD/ops/mosquitto/certs:/certs:ro" \
+            eclipse-mosquitto:2 mosquitto_pub \
+            -h mosquitto -p 8883 \
+            --cafile /certs/ca.crt \
+            --cert /certs/battlereef-backend.crt \
+            --key /certs/battlereef-backend.key \
             -t battlereef/cmd/healthcheck -m ok -q 1
       - name: Verify client without certificate is rejected
         shell: bash
         run: |
           set -euo pipefail
-          if docker exec battlereef-mosquitto mosquitto_pub \
-              -h localhost -p 8883 \
-              --cafile /mosquitto/certs/ca.crt \
+          if docker run --rm --user 0:0 \
+              --network battlereef-marine-controller_default \
+              -v "$PWD/ops/mosquitto/certs/ca.crt:/certs/ca.crt:ro" \
+              eclipse-mosquitto:2 mosquitto_pub \
+              -h mosquitto -p 8883 \
+              --cafile /certs/ca.crt \
               -t battlereef/cmd/healthcheck -m unauthorized -q 1; then
             echo "Broker accepted an MQTT client without a certificate."
             exit 1
