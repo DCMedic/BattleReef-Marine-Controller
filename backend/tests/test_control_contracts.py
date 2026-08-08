@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from app.core.runtime_alerts import runtime_alerts
 from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE
+from app.schemas.command import CommandCreateRequest
 from app.services.command_service import CommandService
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
@@ -24,6 +25,64 @@ def test_command_intent_normalizes_power_variants() -> None:
     assert CommandService._intent("set_power", {"power": False}) == ("set_power", False)
     assert CommandService._intent("power", {"state": "off"}) == ("set_power", False)
     assert CommandService._intent("power", {"state": "on"}) == ("set_power", True)
+
+
+def test_command_delivery_policies_protect_one_shot_actions() -> None:
+    safety = CommandCreateRequest(
+        requested_by="safety_watchdog",
+        target_device="heater_main",
+        command_type="set_power",
+        command_payload={"power": False},
+    )
+    feed = CommandCreateRequest(
+        requested_by="schedule_engine",
+        target_device="feeder_main",
+        command_type="trigger_feed",
+        command_payload={"duration_seconds": 5},
+    )
+    light = CommandCreateRequest(
+        requested_by="schedule_engine",
+        target_device="lights_main",
+        command_type="set_intensity",
+        command_payload={"intensity": 60},
+    )
+
+    assert CommandService.delivery_policy_for(safety) == "safety_critical"
+    assert CommandService.retry_safe("safety_critical") is True
+    assert CommandService.delivery_policy_for(feed) == "one_shot"
+    assert CommandService.retry_safe("one_shot") is False
+    assert CommandService.delivery_policy_for(light) == "state_setting"
+    assert CommandService.retry_safe("state_setting") is True
+
+
+def test_power_ack_must_match_requested_physical_state() -> None:
+    off_command = SimpleNamespace(command_type="set_power", command_payload={"power": False})
+
+    verified, reason = CommandService.verify_ack_state(off_command, {"power": False})
+    assert verified is True
+    assert reason == "power_state_verified"
+
+    verified, reason = CommandService.verify_ack_state(off_command, {"power": True})
+    assert verified is False
+    assert reason == "ack_power_state_mismatch"
+
+    verified, reason = CommandService.verify_ack_state(off_command, {})
+    assert verified is False
+    assert reason == "ack_missing_power_state"
+
+
+def test_one_shot_ack_can_report_explicit_failure() -> None:
+    feed_command = SimpleNamespace(
+        command_type="trigger_feed",
+        command_payload={"duration_seconds": 5},
+    )
+
+    verified, _ = CommandService.verify_ack_state(feed_command, {"success": True})
+    assert verified is True
+
+    verified, reason = CommandService.verify_ack_state(feed_command, {"success": False})
+    assert verified is False
+    assert reason == "one_shot_device_reported_failure"
 
 
 def test_schedule_intensity_presets_are_bounded() -> None:
