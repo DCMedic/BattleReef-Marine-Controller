@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
+from app.mqtt.security import configure_mqtt_security
 from app.mqtt.topics import TOPIC_ACK_SUBSCRIBE_ALL, TOPIC_TELEMETRY_SUBSCRIBE_ALL
 from app.schemas.device_state import DeviceStateUpsertRequest
 from app.schemas.telemetry import TelemetryIngestRequest
@@ -28,9 +29,9 @@ _listener_lock = threading.Lock()
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
-        print(f"[MQTT] Connected to broker at {settings.mqtt_host}:{settings.mqtt_port}")
-        client.subscribe(TOPIC_TELEMETRY_SUBSCRIBE_ALL)
-        client.subscribe(TOPIC_ACK_SUBSCRIBE_ALL)
+        print(f"[MQTT] Connected securely to broker at {settings.mqtt_host}:{settings.mqtt_port}")
+        client.subscribe(TOPIC_TELEMETRY_SUBSCRIBE_ALL, qos=1)
+        client.subscribe(TOPIC_ACK_SUBSCRIBE_ALL, qos=1)
         print(f"[MQTT] Subscribed to {TOPIC_TELEMETRY_SUBSCRIBE_ALL}")
         print(f"[MQTT] Subscribed to {TOPIC_ACK_SUBSCRIBE_ALL}")
     else:
@@ -44,27 +45,52 @@ def on_disconnect(client, userdata, disconnect_flags, reason_code, properties=No
         print(f"[MQTT] Unexpected disconnect from broker. reason_code={reason_code}")
 
 
-def _handle_telemetry(payload: dict, db: Session) -> None:
-    reading_time = payload.get("reading_time") or payload.get("timestamp")
+def _telemetry_topic_identity(topic: str) -> tuple[str, str]:
+    parts = topic.split("/")
+    if len(parts) != 4 or parts[:2] != ["battlereef", "telemetry"]:
+        raise ValueError("invalid_telemetry_topic_namespace")
+    return parts[2], parts[3]
 
+
+def _ack_topic_identity(topic: str) -> str:
+    parts = topic.split("/")
+    if len(parts) != 3 or parts[:2] != ["battlereef", "ack"]:
+        raise ValueError("invalid_ack_topic_namespace")
+    return parts[2]
+
+
+def _handle_telemetry(payload: dict, db: Session, topic: str) -> None:
+    authenticated_node, topic_sensor = _telemetry_topic_identity(topic)
+    source_node = payload.get("source_node")
+    sensor_key = payload.get("sensor_key")
+
+    if source_node != authenticated_node:
+        raise ValueError(
+            f"telemetry_identity_mismatch_topic_{authenticated_node}_payload_{source_node}"
+        )
+    if sensor_key != topic_sensor:
+        raise ValueError(f"telemetry_sensor_mismatch_topic_{topic_sensor}_payload_{sensor_key}")
+
+    reading_time = payload.get("reading_time") or payload.get("timestamp")
     if reading_time is None:
         raise ValueError("Telemetry payload missing reading_time/timestamp")
 
     telemetry = TelemetryIngestRequest(
-        sensor_key=payload["sensor_key"],
+        sensor_key=sensor_key,
         timestamp=reading_time,
         value=payload["value"],
         unit=payload["unit"],
         quality=payload.get("quality", "good"),
-        source_node=payload["source_node"],
+        source_node=authenticated_node,
     )
 
     telemetry_service = TelemetryService(db)
     record = telemetry_service.ingest(telemetry)
 
     print(
-        f"[MQTT] Ingested telemetry id={record.id} "
-        f"sensor_key={record.sensor_key} value={record.value_double} {record.unit}"
+        f"[MQTT] Ingested authenticated telemetry id={record.id} "
+        f"source_node={record.source_node} sensor_key={record.sensor_key} "
+        f"value={record.value_double} {record.unit}"
     )
 
     if record.sensor_key == "tank_temp_main":
@@ -73,16 +99,11 @@ def _handle_telemetry(payload: dict, db: Session) -> None:
 
         if result.get("action_taken"):
             print(
-                f"[RULE] Temperature rule triggered "
-                f"command_id={result['command_id']} "
-                f"target_device={result['target_device']} "
-                f"status={result['status']}"
+                f"[RULE] Temperature rule triggered command_id={result['command_id']} "
+                f"target_device={result['target_device']} status={result['status']}"
             )
         else:
-            print(
-                f"[RULE] Temperature rule evaluated with no action. "
-                f"reason={result.get('reason')}"
-            )
+            print(f"[RULE] Temperature rule evaluated with no action. reason={result.get('reason')}")
 
 
 def _command_failure_alert(record, reason: str, *, security_event: bool = False) -> None:
@@ -105,7 +126,8 @@ def _command_failure_alert(record, reason: str, *, security_event: bool = False)
     )
 
 
-def _handle_ack(payload: dict, db: Session) -> None:
+def _handle_ack(payload: dict, db: Session, topic: str) -> None:
+    authenticated_device = _ack_topic_identity(topic)
     command_id = payload.get("command_id")
     correlation_id = payload.get("correlation_id")
     device_key = payload.get("device_key")
@@ -114,6 +136,10 @@ def _handle_ack(payload: dict, db: Session) -> None:
 
     if command_id is None or device_key is None:
         raise ValueError("ACK payload must include command_id and device_key")
+    if device_key != authenticated_device:
+        raise ValueError(
+            f"ack_identity_mismatch_topic_{authenticated_device}_payload_{device_key}"
+        )
     if not isinstance(state_payload, dict):
         raise ValueError("ACK state_payload must be an object")
 
@@ -129,8 +155,8 @@ def _handle_ack(payload: dict, db: Session) -> None:
         print(f"[ACK] Duplicate ACK ignored for completed command_id={command_id}")
         return
 
-    if device_key != record.target_device:
-        reason = f"ack_device_mismatch_expected_{record.target_device}_got_{device_key}"
+    if authenticated_device != record.target_device:
+        reason = f"ack_device_mismatch_expected_{record.target_device}_got_{authenticated_device}"
         command_service.mark_failed(record, reason)
         _command_failure_alert(record, reason, security_event=True)
         print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
@@ -149,8 +175,6 @@ def _handle_ack(payload: dict, db: Session) -> None:
         print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
         return
 
-    # A valid ACK may arrive just after the timeout worker has moved a command
-    # to retry_pending. Accept it before the next publish and cancel that retry.
     if record.status != "acknowledged":
         command_service.mark_acknowledged(record)
 
@@ -160,7 +184,7 @@ def _handle_ack(payload: dict, db: Session) -> None:
         _command_failure_alert(record, verification_reason)
         print(
             f"[ACK] VERIFICATION_FAILED command_id={record.id} "
-            f"device_key={device_key} reason={verification_reason}"
+            f"device_key={authenticated_device} reason={verification_reason}"
         )
         return
 
@@ -168,7 +192,7 @@ def _handle_ack(payload: dict, db: Session) -> None:
 
     state_record = device_state_service.upsert(
         DeviceStateUpsertRequest(
-            device_key=device_key,
+            device_key=authenticated_device,
             state_payload=state_payload,
             state_source=state_source,
         )
@@ -179,7 +203,7 @@ def _handle_ack(payload: dict, db: Session) -> None:
 
     print(
         f"[ACK] VERIFIED command_id={record.id} correlation_id={record.correlation_id} "
-        f"device_key={device_key} device_state_id={state_record.id}"
+        f"device_key={authenticated_device} device_state_id={state_record.id}"
     )
 
 
@@ -192,9 +216,9 @@ def on_message(client, userdata, msg):
         db = SessionLocal()
 
         if msg.topic.startswith("battlereef/telemetry/"):
-            _handle_telemetry(payload, db)
+            _handle_telemetry(payload, db, msg.topic)
         elif msg.topic.startswith("battlereef/ack/"):
-            _handle_ack(payload, db)
+            _handle_ack(payload, db, msg.topic)
         else:
             print(f"[MQTT] Received message on unhandled topic {msg.topic}")
 
@@ -216,10 +240,7 @@ def _mqtt_worker():
     global _mqtt_client
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=settings.mqtt_client_id)
-
-    if settings.mqtt_username:
-        client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
-
+    configure_mqtt_security(client, settings)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
@@ -229,7 +250,7 @@ def _mqtt_worker():
 
     while True:
         try:
-            print(f"[MQTT] Attempting connection to {settings.mqtt_host}:{settings.mqtt_port}")
+            print(f"[MQTT] Attempting secure connection to {settings.mqtt_host}:{settings.mqtt_port}")
             client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
             client.loop_forever()
         except Exception as exc:
