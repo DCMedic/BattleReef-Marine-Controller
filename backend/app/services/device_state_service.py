@@ -19,25 +19,43 @@ class DeviceStateService:
             .first()
         )
 
+    def get_mode(self, device_key: str) -> str:
+        record = self.get_by_device_key(device_key)
+        if record is None or not record.state_payload:
+            return "auto"
+        mode = str(record.state_payload.get("mode", "auto")).strip().lower()
+        return mode if mode in {"auto", "manual"} else "auto"
+
+    def _commit(self, record: DeviceStateRecord) -> DeviceStateRecord:
+        try:
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+            return record
+        except Exception:
+            self.db.rollback()
+            raise
+
     def set_mode(self, device_key: str, mode: str) -> DeviceStateRecord:
+        normalized_mode = mode.strip().lower()
+        if normalized_mode not in {"auto", "manual"}:
+            raise ValueError("mode must be 'auto' or 'manual'")
+
         record = self.get_by_device_key(device_key)
 
         if record is None:
             record = self.model(
                 device_key=device_key,
-                state_payload={"mode": mode},
+                state_payload={"mode": normalized_mode},
                 state_source="ui",
             )
-            self.db.add(record)
         else:
             payload = dict(record.state_payload or {})
-            payload["mode"] = mode
+            payload["mode"] = normalized_mode
             record.state_payload = payload
             record.state_source = "ui"
 
-        self.db.commit()
-        self.db.refresh(record)
-        return record
+        return self._commit(record)
 
     def set_state(
         self,
@@ -54,16 +72,13 @@ class DeviceStateService:
                 state_payload=state_payload,
                 state_source=source,
             )
-            self.db.add(record)
         else:
             merged_payload = dict(record.state_payload or {})
             merged_payload.update(state_payload)
             record.state_payload = merged_payload
             record.state_source = source
 
-        self.db.commit()
-        self.db.refresh(record)
-        return record
+        return self._commit(record)
 
     def list_recent(self, limit: int = 20) -> List[DeviceStateRecord]:
         return (
