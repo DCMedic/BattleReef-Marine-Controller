@@ -75,7 +75,7 @@ def on_message(client, userdata, msg):
         command_type = payload["command_type"]
         command_payload = payload["command_payload"]
 
-        expected_topic = f"battlereef/cmd/{device_key}"
+        expected_topic = f"battlereef/cmd/{device_key}/set"
         if msg.topic != expected_topic:
             raise ValueError(f"command_topic_target_mismatch_expected_{expected_topic}")
 
