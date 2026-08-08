@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -12,12 +12,13 @@ from app.services.schedule_service import ScheduleService
 
 
 class ScheduleEngine:
-    """
-    Evaluates active schedules and issues commands when needed.
-    Supports:
-    - time-window schedules (on/off)
-    - event schedules (feeding, triggers)
-    """
+    """Evaluate schedules and issue canonical, deduplicated device commands."""
+
+    INTENSITY_PRESETS = {
+        "low": 30,
+        "medium": 60,
+        "high": 90,
+    }
 
     def __init__(self, db: Session):
         self.db = db
@@ -27,136 +28,224 @@ class ScheduleEngine:
 
     def evaluate(self) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
-        hour = now.hour
-        minute = now.minute
+        results: list[dict[str, Any]] = []
 
-        schedules = self.schedule_service.list_schedules(limit=500)
-
-        results: List[Dict[str, Any]] = []
-
-        for schedule in schedules:
+        for schedule in self.schedule_service.list_schedules(limit=500):
             if not schedule.enabled:
                 continue
 
             payload = schedule.config_payload or {}
             schedule_type = schedule.schedule_type
 
-            if schedule_type == "time_window":
-                result = self._handle_time_window(schedule, payload, hour)
+            if self.device_state_service.get_mode(schedule.device_key) == "manual":
+                results.append(
+                    {
+                        "device": schedule.device_key,
+                        "schedule": schedule.name,
+                        "status": "skipped_manual_mode",
+                    }
+                )
+                continue
+
+            if schedule_type == "lighting":
+                result = self._handle_lighting(schedule, payload, now)
+            elif schedule_type == "feeding":
+                result = self._handle_feeding(schedule, payload, now)
+            elif schedule_type == "flow":
+                result = self._handle_flow(schedule, payload, now)
+            elif schedule_type == "time_window":
+                result = self._handle_legacy_time_window(schedule, payload, now)
             elif schedule_type == "event":
-                result = self._handle_event(schedule, payload, hour, minute, now)
+                result = self._handle_legacy_event(schedule, payload, now)
             else:
                 result = {
                     "device": schedule.device_key,
+                    "schedule": schedule.name,
                     "status": "unknown_schedule_type",
+                    "schedule_type": schedule_type,
                 }
 
             results.append(result)
 
         return {
             "evaluated_at": now.isoformat(),
-            "schedule_hour_utc": hour,
+            "schedule_hour_utc": now.hour,
             "results": results,
         }
 
-    # --------------------------
-    # TIME WINDOW (existing)
-    # --------------------------
-    def _handle_time_window(self, schedule, payload, hour):
-        start = payload.get("start_hour")
-        end = payload.get("end_hour")
-
-        if start is None or end is None:
-            return {"device": schedule.device_key, "status": "invalid_config"}
-
-        in_window = start <= hour < end
-        desired_state = "on" if in_window else "off"
-
-        device_key = schedule.device_key
-
-        current_state = self.device_state_service.get_by_device_key(device_key)
-
-        current_mode = (
-            current_state.state_payload.get("mode")
-            if current_state and current_state.state_payload
-            else "auto"
-        )
-
-        if current_mode != "auto":
-            return {"device": device_key, "status": "skipped_manual_mode"}
-
-        last_state = (
-            current_state.state_payload.get("power")
-            if current_state and current_state.state_payload
-            else None
-        )
-
-        if last_state == desired_state:
-            return {"device": device_key, "status": "no_change"}
-
-        command = self.command_service.create_command(
+    def _queue(
+        self,
+        *,
+        schedule,
+        command_type: str,
+        command_payload: dict[str, Any],
+        requested_by: str,
+        duplicate_window_seconds: int = 60,
+    ) -> dict[str, Any]:
+        record, created = self.command_service.create_if_not_duplicate(
             CommandCreateRequest(
-                requested_by="schedule_engine",
-                target_device=device_key,
-                command_type="power",
-                command_payload={"state": desired_state},
-            )
+                requested_by=requested_by,
+                target_device=schedule.device_key,
+                command_type=command_type,
+                command_payload=command_payload,
+            ),
+            duplicate_window_seconds=duplicate_window_seconds,
         )
-
-        self.device_state_service.set_state(
-            device_key=device_key,
-            state_payload={"power": desired_state, "mode": "auto"},
-            source="schedule_engine",
-        )
-
         return {
-            "device": device_key,
-            "status": "command_sent",
-            "new_state": desired_state,
-            "command_id": command.id,
+            "device": schedule.device_key,
+            "schedule": schedule.name,
+            "status": "command_queued" if created else "duplicate_suppressed",
+            "command_id": record.id,
+            "command_type": command_type,
         }
 
-    # --------------------------
-    # EVENT (NEW)
-    # --------------------------
-    def _handle_event(self, schedule, payload, hour, minute, now):
-        trigger_hour = payload.get("hour")
-        trigger_minute = payload.get("minute", 0)
-        cooldown_minutes = payload.get("cooldown_minutes", 60)
+    @staticmethod
+    def _hour_in_window(hour: int, start: int, end: int) -> bool:
+        if start == end:
+            return True
+        if start < end:
+            return start <= hour < end
+        return hour >= start or hour < end
 
-        device_key = schedule.device_key
+    def _handle_lighting(self, schedule, payload: dict[str, Any], now: datetime) -> dict[str, Any]:
+        start = int(payload.get("start_hour_utc", 14))
+        end = int(payload.get("end_hour_utc", 23))
+        desired_power = self._hour_in_window(now.hour, start, end)
+        return self._queue(
+            schedule=schedule,
+            command_type="set_power",
+            command_payload={
+                "power": desired_power,
+                "mode": "auto",
+                "reason": "schedule_lighting_window",
+                "schedule_name": schedule.name,
+            },
+            requested_by="schedule_engine.lighting",
+        )
 
-        if trigger_hour is None:
-            return {"device": device_key, "status": "invalid_event_config"}
+    def _handle_feeding(self, schedule, payload: dict[str, Any], now: datetime) -> dict[str, Any]:
+        hour = int(payload.get("hour_utc", -1))
+        minute = int(payload.get("minute_utc", 0))
+        duration = float(payload.get("duration_seconds", 5))
 
-        # Check if we are at trigger time (within same minute)
-        if not (hour == trigger_hour and minute == trigger_minute):
-            return {"device": device_key, "status": "not_trigger_time"}
+        if now.hour != hour or now.minute != minute:
+            return {
+                "device": schedule.device_key,
+                "schedule": schedule.name,
+                "status": "not_trigger_time",
+            }
 
-        # Check cooldown
-        last_command = self.command_service.get_last_command_for_device(device_key)
-
+        last_command = self.command_service.get_last_command_for_device(schedule.device_key)
         if last_command and last_command.requested_at:
-            delta = now - last_command.requested_at
-
-            if delta < timedelta(minutes=cooldown_minutes):
+            if now - last_command.requested_at < timedelta(minutes=55):
                 return {
-                    "device": device_key,
+                    "device": schedule.device_key,
+                    "schedule": schedule.name,
                     "status": "cooldown_active",
+                    "command_id": last_command.id,
                 }
 
-        # Fire event (e.g., feeding)
-        command = self.command_service.create_command(
-            CommandCreateRequest(
-                requested_by="schedule_engine",
-                target_device=device_key,
-                command_type="trigger",
-                command_payload={"action": "execute"},
-            )
+        return self._queue(
+            schedule=schedule,
+            command_type="trigger_feed",
+            command_payload={
+                "duration_seconds": duration,
+                "mode": "auto",
+                "reason": "scheduled_feeding_window",
+                "schedule_name": schedule.name,
+                "requested_at": now.isoformat(),
+            },
+            requested_by="schedule_engine.feeding",
+            duplicate_window_seconds=3600,
         )
 
-        return {
-            "device": device_key,
-            "status": "event_triggered",
-            "command_id": command.id,
-        }
+    def _normalize_intensity(self, value: Any) -> int:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in self.INTENSITY_PRESETS:
+                return self.INTENSITY_PRESETS[normalized]
+            value = float(normalized)
+
+        intensity = int(float(value))
+        if intensity < 0 or intensity > 100:
+            raise ValueError("flow intensity must be between 0 and 100")
+        return intensity
+
+    def _handle_flow(self, schedule, payload: dict[str, Any], now: datetime) -> dict[str, Any]:
+        day_start = int(payload.get("day_start_hour_utc", 12))
+        day_end = int(payload.get("day_end_hour_utc", 23))
+        raw_intensity = (
+            payload.get("day_intensity", "high")
+            if self._hour_in_window(now.hour, day_start, day_end)
+            else payload.get("night_intensity", "low")
+        )
+        intensity = self._normalize_intensity(raw_intensity)
+
+        return self._queue(
+            schedule=schedule,
+            command_type="set_intensity",
+            command_payload={
+                "power": intensity > 0,
+                "intensity": intensity,
+                "mode": "auto",
+                "reason": "scheduled_flow_profile",
+                "schedule_name": schedule.name,
+            },
+            requested_by="schedule_engine.flow",
+        )
+
+    def _handle_legacy_time_window(
+        self,
+        schedule,
+        payload: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        start = payload.get("start_hour")
+        end = payload.get("end_hour")
+        if start is None or end is None:
+            return {"device": schedule.device_key, "schedule": schedule.name, "status": "invalid_config"}
+
+        desired_power = self._hour_in_window(now.hour, int(start), int(end))
+        return self._queue(
+            schedule=schedule,
+            command_type="set_power",
+            command_payload={"power": desired_power, "mode": "auto", "schedule_name": schedule.name},
+            requested_by="schedule_engine.legacy_time_window",
+        )
+
+    def _handle_legacy_event(
+        self,
+        schedule,
+        payload: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        hour = payload.get("hour")
+        minute = int(payload.get("minute", 0))
+        if hour is None:
+            return {
+                "device": schedule.device_key,
+                "schedule": schedule.name,
+                "status": "invalid_event_config",
+            }
+        if now.hour != int(hour) or now.minute != minute:
+            return {
+                "device": schedule.device_key,
+                "schedule": schedule.name,
+                "status": "not_trigger_time",
+            }
+
+        command_type = str(payload.get("command_type", "trigger_feed"))
+        command_payload = dict(payload.get("command_payload", {}))
+        if command_type == "trigger_feed" and "duration_seconds" not in command_payload:
+            command_payload["duration_seconds"] = float(payload.get("duration_seconds", 5))
+        command_payload.setdefault("mode", "auto")
+        command_payload.setdefault("schedule_name", schedule.name)
+        command_payload.setdefault("requested_at", now.isoformat())
+
+        return self._queue(
+            schedule=schedule,
+            command_type=command_type,
+            command_payload=command_payload,
+            requested_by="schedule_engine.legacy_event",
+            duplicate_window_seconds=int(payload.get("cooldown_minutes", 60)) * 60,
+        )

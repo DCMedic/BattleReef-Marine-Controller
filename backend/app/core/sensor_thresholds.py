@@ -15,14 +15,6 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-def _env_str(name: str, default: str) -> str:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    cleaned = raw.strip()
-    return cleaned if cleaned else default
-
-
 DEFAULT_SENSOR_THRESHOLDS: dict[str, dict[str, Any]] = {
     "orp_main": {
         "severity": "warning",
@@ -90,7 +82,10 @@ DEFAULT_SENSOR_THRESHOLDS: dict[str, dict[str, Any]] = {
     },
 }
 
-LEAK_EXPECTED_DRY_VALUE = _env_str("THRESHOLD_LEAK_EXPECTED_STATE", "dry").lower()
+# Leak probes use the numeric telemetry contract: 0.0 = dry, 1.0 = wet.
+# The watchdog normalizes readings to strings before comparison, so normalize
+# the configured numeric dry value the same way here.
+LEAK_EXPECTED_DRY_VALUE = str(_env_float("THRESHOLD_LEAK_DRY_VALUE", 0.0))
 LEAK_SENSOR_KEYS = ["leak_probe_a", "leak_probe_b"]
 
 

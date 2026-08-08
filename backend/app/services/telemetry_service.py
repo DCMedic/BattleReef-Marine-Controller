@@ -64,6 +64,15 @@ class TelemetryService:
             .all()
         )
 
+    def latest_by_sensor(self, sensor_key: str, limit: int = 1) -> list[TelemetryRecord]:
+        return (
+            self.db.query(self.model)
+            .filter(self.model.sensor_key == sensor_key)
+            .order_by(desc(self.model.reading_time))
+            .limit(limit)
+            .all()
+        )
+
     def history_for_sensors(
         self,
         sensor_keys: list[str],

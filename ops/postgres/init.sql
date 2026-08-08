@@ -51,6 +51,23 @@ CREATE INDEX IF NOT EXISTS idx_device_states_updated_at
 CREATE INDEX IF NOT EXISTS idx_device_states_device_key
     ON device_states (device_key);
 
+CREATE TABLE IF NOT EXISTS schedules (
+    id SERIAL PRIMARY KEY,
+    device_key VARCHAR(100) NOT NULL,
+    schedule_type VARCHAR(50) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    config_payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedules_device_key
+    ON schedules (device_key);
+
+CREATE INDEX IF NOT EXISTS idx_schedules_enabled
+    ON schedules (enabled);
+
 DO $$
 BEGIN
     PERFORM create_hypertable(

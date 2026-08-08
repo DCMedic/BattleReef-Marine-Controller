@@ -55,7 +55,7 @@ function readingTone(sensorKey: string, valueRaw: string): React.CSSProperties {
   const numericValue = Number(valueRaw);
 
   if (sensorKey.startsWith("leak_probe")) {
-    const normal = valueRaw.toLowerCase() === "dry";
+    const normal = !Number.isNaN(numericValue) && numericValue === 0;
     return normal
       ? { borderColor: "#a7f3d0", background: "#ecfdf5" }
       : { borderColor: "#fecdd3", background: "#fff1f2" };
@@ -93,12 +93,14 @@ function renderValue(
     };
   }
 
-  const series = history?.series?.[sensor.sensor_key] ?? [];
-  const latestHistory = series.length > 0 ? series[series.length - 1] : null;
+  const series = history?.series.find((item) => item.sensor_key === sensor.sensor_key) ?? null;
+  const latestHistory = series && series.points.length > 0
+    ? series.points[series.points.length - 1]
+    : null;
 
-  if (latestHistory) {
+  if (latestHistory && series) {
     return {
-      value: `${latestHistory.value} ${latestHistory.unit}`.trim(),
+      value: `${latestHistory.value} ${series.unit}`.trim(),
       subtitle: `History point ${new Date(latestHistory.timestamp).toLocaleTimeString()}`,
     };
   }

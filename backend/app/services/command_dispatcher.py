@@ -9,10 +9,6 @@ from app.config import get_settings
 from app.db.session import SessionLocal
 from app.mqtt.topics import device_command_topic
 from app.services.command_service import CommandService
-from app.services.device_state_service import DeviceStateService
-
-# NEW: direct device control layer
-from app.bootstrap_devices import get_services
 
 settings = get_settings()
 
@@ -53,88 +49,41 @@ def _connect_client() -> mqtt.Client:
             time.sleep(5)
 
 
-def _execute_direct_command(record) -> None:
-    """
-    NEW: Execute command directly against device layer (HAL).
-    """
-    services = get_services()
-    device_manager = services.device_manager
-
-    payload = record.command_payload or {}
-
-    action = payload.get("state") or payload.get("action")
-
-    if not action:
-        raise ValueError("Invalid command payload: missing action/state")
-
-    device_manager.command(
-        name=record.target_device,
-        action=action,
-        value=payload,
-    )
-
-
 def _dispatch_once(client: mqtt.Client) -> None:
     db = SessionLocal()
 
     try:
         command_service = CommandService(db)
-        device_state_service = DeviceStateService(db)
-
         queued = command_service.list_queued(limit=20)
 
         for record in queued:
             try:
-                # -----------------------------
-                # ACKNOWLEDGE COMMAND
-                # -----------------------------
-                command_service.mark_acknowledged(record)
-
-                # -----------------------------
-                # MQTT DISPATCH (EXISTING)
-                # -----------------------------
                 topic = device_command_topic(record.target_device)
-                message = _build_message(record)
-                payload = json.dumps(message)
-
-                result = client.publish(topic, payload)
+                payload = json.dumps(_build_message(record))
+                result = client.publish(topic, payload, qos=1)
 
                 if result.rc != mqtt.MQTT_ERR_SUCCESS:
                     raise RuntimeError(f"mqtt_publish_failed_rc_{result.rc}")
 
-                # -----------------------------
-                # DIRECT EXECUTION (NEW)
-                # -----------------------------
-                _execute_direct_command(record)
-
-                # -----------------------------
-                # UPDATE DEVICE STATE (NEW)
-                # -----------------------------
-                device_state_service.set_state(
-                    device_key=record.target_device,
-                    state_payload=record.command_payload,
-                    source="dispatcher",
-                )
-
-                # -----------------------------
-                # COMPLETE COMMAND
-                # -----------------------------
-                command_service.mark_completed(record)
+                # Publishing is not completion. The device ACK listener is the
+                # authoritative path that marks a command completed and records
+                # the device-reported state.
+                command_service.mark_dispatched(record)
 
                 print(
-                    f"[DISPATCH] SUCCESS "
-                    f"command_id={record.id} device={record.target_device}"
+                    f"[DISPATCH] SENT command_id={record.id} "
+                    f"device={record.target_device} topic={topic}"
                 )
 
             except Exception as exc:
                 command_service.mark_failed(record, str(exc))
-
                 print(
-                    f"[DISPATCH] FAILED "
-                    f"command_id={record.id} device={record.target_device} error={exc}"
+                    f"[DISPATCH] FAILED command_id={record.id} "
+                    f"device={record.target_device} error={exc}"
                 )
 
     except Exception as exc:
+        db.rollback()
         print(f"[DISPATCH] Dispatch cycle error: {exc}")
 
     finally:
