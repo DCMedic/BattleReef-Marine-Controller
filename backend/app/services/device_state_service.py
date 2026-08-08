@@ -5,6 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.db.models.device_state import DeviceStateRecord
+from app.schemas.device_state import DeviceStateUpsertRequest
 
 
 class DeviceStateService:
@@ -35,6 +36,13 @@ class DeviceStateService:
         except Exception:
             self.db.rollback()
             raise
+
+    def upsert(self, payload: DeviceStateUpsertRequest) -> DeviceStateRecord:
+        return self.set_state(
+            device_key=payload.device_key,
+            state_payload=payload.state_payload,
+            source=payload.state_source,
+        )
 
     def set_mode(self, device_key: str, mode: str) -> DeviceStateRecord:
         normalized_mode = mode.strip().lower()
