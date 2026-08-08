@@ -23,11 +23,17 @@ services:
     container_name: battlereef-mosquitto
     restart: unless-stopped
     ports:
-      - "1883:1883"
+      - "8883:8883"
     volumes:
       - ./ops/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./ops/mosquitto/acl.conf:/mosquitto/config/acl.conf:ro
+      - ./ops/mosquitto/certs:/mosquitto/certs:ro
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1883 -t healthcheck -m ok || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mosquitto_pub -h localhost -p 8883 --cafile /mosquitto/certs/ca.crt --cert /mosquitto/certs/battlereef-backend.crt --key /mosquitto/certs/battlereef-backend.key -t battlereef/cmd/healthcheck -m ok -q 1 || exit 1"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,6 +48,7 @@ services:
     volumes:
       - ./backend:/app
       - ./shared:/shared
+      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
     command:
       - sh
       - -c
@@ -55,7 +62,7 @@ services:
       postgres:
         condition: service_healthy
       mosquitto:
-        condition: service_started
+        condition: service_healthy
 
   simulator:
     build:
@@ -65,13 +72,19 @@ services:
     restart: unless-stopped
     environment:
       MQTT_HOST: mosquitto
-      MQTT_PORT: 1883
-      MQTT_CLIENT_ID: battlereef-simulator
+      MQTT_PORT: 8883
+      MQTT_CLIENT_ID: simulator_node
+      MQTT_IDENTITY: simulator_node
+      MQTT_CA_CERT: /run/battlereef-mqtt/ca.crt
+      MQTT_CLIENT_CERT: /run/battlereef-mqtt/simulator_node.crt
+      MQTT_CLIENT_KEY: /run/battlereef-mqtt/simulator_node.key
       PUBLISH_INTERVAL_SECONDS: 5
+    volumes:
+      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
     command: ["python", "/app/publish_telemetry.py"]
     depends_on:
       mosquitto:
-        condition: service_started
+        condition: service_healthy
 
   device-listener:
     build:
@@ -81,12 +94,18 @@ services:
     restart: unless-stopped
     environment:
       MQTT_HOST: mosquitto
-      MQTT_PORT: 1883
-      MQTT_CLIENT_ID: battlereef-device-listener
+      MQTT_PORT: 8883
+      MQTT_CLIENT_ID: device-simulator
+      MQTT_IDENTITY: device-simulator
+      MQTT_CA_CERT: /run/battlereef-mqtt/ca.crt
+      MQTT_CLIENT_CERT: /run/battlereef-mqtt/device-simulator.crt
+      MQTT_CLIENT_KEY: /run/battlereef-mqtt/device-simulator.key
+    volumes:
+      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
     command: ["python", "/app/device_command_listener.py"]
     depends_on:
       mosquitto:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   battlereef_postgres_data:
