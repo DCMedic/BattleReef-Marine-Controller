@@ -1,0 +1,40 @@
+name: Temporary Lockfile Remediation
+
+on:
+  push:
+    branches:
+      - stabilize/control-path-ci-cleanup
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stabilize/control-path-ci-cleanup
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Regenerate audited lockfile
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit fix --package-lock-only
+      - name: Commit lockfile if changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- frontend/package-lock.json; then
+            echo "Lockfile already clean."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json
+          git commit -m "Remediate frontend dependency advisories"
+          git push origin HEAD:stabilize/control-path-ci-cleanup
