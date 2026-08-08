@@ -17,13 +17,20 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_sensor_time
 
 CREATE TABLE IF NOT EXISTS commands (
     id BIGSERIAL PRIMARY KEY,
+    correlation_id VARCHAR(36) NOT NULL DEFAULT ('cmd-' || md5(random()::text || clock_timestamp()::text)),
     requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     requested_by TEXT NOT NULL,
     target_device TEXT NOT NULL,
     command_type TEXT NOT NULL,
     command_payload JSONB NOT NULL,
+    delivery_policy TEXT NOT NULL DEFAULT 'best_effort',
     status TEXT NOT NULL DEFAULT 'queued',
+    dispatch_attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 2,
+    last_dispatched_at TIMESTAMPTZ NULL,
+    ack_deadline TIMESTAMPTZ NULL,
     acknowledged_at TIMESTAMPTZ NULL,
+    verified_at TIMESTAMPTZ NULL,
     completed_at TIMESTAMPTZ NULL,
     error_message TEXT NULL
 );
@@ -36,6 +43,15 @@ CREATE INDEX IF NOT EXISTS idx_commands_target_device
 
 CREATE INDEX IF NOT EXISTS idx_commands_status
     ON commands (status);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commands_correlation_id
+    ON commands (correlation_id);
+
+CREATE INDEX IF NOT EXISTS idx_commands_ack_deadline
+    ON commands (ack_deadline);
+
+CREATE INDEX IF NOT EXISTS idx_commands_delivery_policy
+    ON commands (delivery_policy);
 
 CREATE TABLE IF NOT EXISTS device_states (
     id BIGSERIAL PRIMARY KEY,

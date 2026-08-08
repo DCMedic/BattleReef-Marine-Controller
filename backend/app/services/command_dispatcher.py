@@ -6,6 +6,7 @@ from typing import Optional
 import paho.mqtt.client as mqtt
 
 from app.config import get_settings
+from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
 from app.mqtt.topics import device_command_topic
 from app.services.command_service import CommandService
@@ -20,11 +21,14 @@ _dispatch_client: Optional[mqtt.Client] = None
 def _build_message(record) -> dict:
     return {
         "command_id": record.id,
+        "correlation_id": record.correlation_id,
         "requested_at": record.requested_at.isoformat(),
         "requested_by": record.requested_by,
         "target_device": record.target_device,
         "command_type": record.command_type,
         "command_payload": record.command_payload,
+        "delivery_policy": record.delivery_policy,
+        "dispatch_attempt": int(record.dispatch_attempts or 0) + 1,
     }
 
 
@@ -49,14 +53,58 @@ def _connect_client() -> mqtt.Client:
             time.sleep(5)
 
 
+def _handle_expired_commands(command_service: CommandService) -> None:
+    for record in command_service.list_expired_dispatched():
+        attempts = int(record.dispatch_attempts or 0)
+        reason = f"ack_timeout_after_attempt_{attempts}"
+
+        if CommandService.retry_safe(record.delivery_policy) and attempts < int(record.max_attempts or 1):
+            command_service.mark_retry_pending(record, reason)
+            print(
+                f"[DISPATCH] RETRY_PENDING command_id={record.id} "
+                f"policy={record.delivery_policy} attempts={attempts}/{record.max_attempts}"
+            )
+            continue
+
+        command_service.mark_timeout(record, reason)
+        print(
+            f"[DISPATCH] TIMEOUT command_id={record.id} device={record.target_device} "
+            f"policy={record.delivery_policy} attempts={attempts}/{record.max_attempts}"
+        )
+
+        alert_key = f"command_delivery_{record.id}"
+        severity = "critical" if record.delivery_policy == "safety_critical" else "warning"
+        runtime_alerts.upsert(
+            key=alert_key,
+            severity=severity,
+            title="Command Delivery Failure",
+            message=(
+                f"Command {record.id} to {record.target_device} was not confirmed "
+                f"after {attempts} dispatch attempt(s)."
+            ),
+            source="command_dispatcher",
+            metadata={
+                "command_id": record.id,
+                "correlation_id": record.correlation_id,
+                "target_device": record.target_device,
+                "command_type": record.command_type,
+                "delivery_policy": record.delivery_policy,
+                "dispatch_attempts": attempts,
+                "max_attempts": record.max_attempts,
+                "reason": reason,
+            },
+        )
+
+
 def _dispatch_once(client: mqtt.Client) -> None:
     db = SessionLocal()
 
     try:
         command_service = CommandService(db)
-        queued = command_service.list_queued(limit=20)
+        _handle_expired_commands(command_service)
+        dispatchable = command_service.list_dispatchable(limit=20)
 
-        for record in queued:
+        for record in dispatchable:
             try:
                 topic = device_command_topic(record.target_device)
                 payload = json.dumps(_build_message(record))
@@ -65,14 +113,12 @@ def _dispatch_once(client: mqtt.Client) -> None:
                 if result.rc != mqtt.MQTT_ERR_SUCCESS:
                     raise RuntimeError(f"mqtt_publish_failed_rc_{result.rc}")
 
-                # Publishing is not completion. The device ACK listener is the
-                # authoritative path that marks a command completed and records
-                # the device-reported state.
                 command_service.mark_dispatched(record)
 
                 print(
                     f"[DISPATCH] SENT command_id={record.id} "
-                    f"device={record.target_device} topic={topic}"
+                    f"correlation_id={record.correlation_id} device={record.target_device} "
+                    f"topic={topic} attempt={record.dispatch_attempts}/{record.max_attempts}"
                 )
 
             except Exception as exc:

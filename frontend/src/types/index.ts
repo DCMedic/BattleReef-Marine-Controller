@@ -55,13 +55,20 @@ export type TelemetryHistoryResponse = {
 
 export type CommandResponse = {
   id: number;
+  correlation_id: string;
   requested_at: string;
   requested_by: string;
   target_device: string;
   command_type: string;
   command_payload: Record<string, unknown>;
+  delivery_policy: string;
   status: string;
+  dispatch_attempts: number;
+  max_attempts: number;
+  last_dispatched_at: string | null;
+  ack_deadline: string | null;
   acknowledged_at: string | null;
+  verified_at: string | null;
   completed_at: string | null;
   error_message: string | null;
 };

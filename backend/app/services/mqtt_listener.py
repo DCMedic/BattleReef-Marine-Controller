@@ -9,6 +9,7 @@ import paho.mqtt.client as mqtt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
 from app.mqtt.topics import TOPIC_ACK_SUBSCRIBE_ALL, TOPIC_TELEMETRY_SUBSCRIBE_ALL
 from app.schemas.device_state import DeviceStateUpsertRequest
@@ -84,14 +85,37 @@ def _handle_telemetry(payload: dict, db: Session) -> None:
             )
 
 
+def _command_failure_alert(record, reason: str, *, security_event: bool = False) -> None:
+    severity = "critical" if record.delivery_policy == "safety_critical" or security_event else "warning"
+    runtime_alerts.upsert(
+        key=f"command_delivery_{record.id}",
+        severity=severity,
+        title="Command Verification Failure",
+        message=f"Command {record.id} to {record.target_device} could not be verified: {reason}.",
+        source="mqtt_ack_listener",
+        metadata={
+            "command_id": record.id,
+            "correlation_id": record.correlation_id,
+            "target_device": record.target_device,
+            "command_type": record.command_type,
+            "delivery_policy": record.delivery_policy,
+            "reason": reason,
+            "security_event": security_event,
+        },
+    )
+
+
 def _handle_ack(payload: dict, db: Session) -> None:
     command_id = payload.get("command_id")
+    correlation_id = payload.get("correlation_id")
     device_key = payload.get("device_key")
     state_payload = payload.get("state_payload", {})
     state_source = payload.get("state_source", "device_ack")
 
     if command_id is None or device_key is None:
         raise ValueError("ACK payload must include command_id and device_key")
+    if not isinstance(state_payload, dict):
+        raise ValueError("ACK state_payload must be an object")
 
     command_service = CommandService(db)
     device_state_service = DeviceStateService(db)
@@ -101,7 +125,46 @@ def _handle_ack(payload: dict, db: Session) -> None:
         print(f"[ACK] No command found for command_id={command_id}")
         return
 
-    command_service.mark_completed(record)
+    if record.status == "completed":
+        print(f"[ACK] Duplicate ACK ignored for completed command_id={command_id}")
+        return
+
+    if device_key != record.target_device:
+        reason = f"ack_device_mismatch_expected_{record.target_device}_got_{device_key}"
+        command_service.mark_failed(record, reason)
+        _command_failure_alert(record, reason, security_event=True)
+        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        return
+
+    if correlation_id is not None and correlation_id != record.correlation_id:
+        reason = "ack_correlation_id_mismatch"
+        command_service.mark_failed(record, reason)
+        _command_failure_alert(record, reason, security_event=True)
+        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        return
+
+    if record.status not in {"dispatched", "acknowledged", "retry_pending"}:
+        reason = f"ack_invalid_command_state_{record.status}"
+        _command_failure_alert(record, reason, security_event=True)
+        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        return
+
+    # A valid ACK may arrive just after the timeout worker has moved a command
+    # to retry_pending. Accept it before the next publish and cancel that retry.
+    if record.status != "acknowledged":
+        command_service.mark_acknowledged(record)
+
+    verified, verification_reason = command_service.verify_ack_state(record, state_payload)
+    if not verified:
+        command_service.mark_failed(record, verification_reason)
+        _command_failure_alert(record, verification_reason)
+        print(
+            f"[ACK] VERIFICATION_FAILED command_id={record.id} "
+            f"device_key={device_key} reason={verification_reason}"
+        )
+        return
+
+    command_service.mark_verified(record)
 
     state_record = device_state_service.upsert(
         DeviceStateUpsertRequest(
@@ -111,8 +174,11 @@ def _handle_ack(payload: dict, db: Session) -> None:
         )
     )
 
+    command_service.mark_completed(record)
+    runtime_alerts.clear(f"command_delivery_{record.id}")
+
     print(
-        f"[ACK] Command completed command_id={record.id} "
+        f"[ACK] VERIFIED command_id={record.id} correlation_id={record.correlation_id} "
         f"device_key={device_key} device_state_id={state_record.id}"
     )
 
@@ -133,6 +199,8 @@ def on_message(client, userdata, msg):
             print(f"[MQTT] Received message on unhandled topic {msg.topic}")
 
     except Exception as exc:
+        if db is not None:
+            db.rollback()
         topic = getattr(msg, "topic", "<unknown>")
         print(
             f"[MQTT] Processing error for topic '{topic}': {exc} | "
