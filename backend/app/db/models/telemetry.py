@@ -25,8 +25,6 @@ class TelemetryReading(Base):
     source_node: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
     value_double: Mapped[float] = mapped_column(Float, nullable=False)
-    value_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-
     unit: Mapped[str] = mapped_column(Text, nullable=False)
     quality: Mapped[str] = mapped_column(Text, nullable=False, default="good")
 
