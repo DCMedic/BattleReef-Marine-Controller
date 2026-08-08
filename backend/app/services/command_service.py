@@ -148,10 +148,11 @@ class CommandService:
         return self.db.query(self.model).filter(self.model.id == command_id).first()
 
     def mark_acknowledged(self, record: CommandRecord) -> CommandRecord:
-        if record.status not in {"dispatched", "acknowledged"}:
+        if record.status not in {"dispatched", "acknowledged", "retry_pending"}:
             raise ValueError(f"command_not_acknowledgeable_from_{record.status}")
         record.status = "acknowledged"
         record.acknowledged_at = datetime.now(timezone.utc)
+        record.ack_deadline = None
         return self._commit(record)
 
     def mark_dispatched(self, record: CommandRecord) -> CommandRecord:
