@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from app.api.routes.commands import _command_response
 from app.core.runtime_alerts import runtime_alerts
 from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE
 from app.schemas.command import CommandCreateRequest
@@ -49,6 +50,7 @@ def test_command_delivery_policies_protect_one_shot_actions() -> None:
 
     assert CommandService.delivery_policy_for(safety) == "safety_critical"
     assert CommandService.retry_safe("safety_critical") is True
+    assert CommandService.timeout_seconds_for("safety_critical") == 5
     assert CommandService.delivery_policy_for(feed) == "one_shot"
     assert CommandService.retry_safe("one_shot") is False
     assert CommandService.delivery_policy_for(light) == "state_setting"
@@ -83,6 +85,35 @@ def test_one_shot_ack_can_report_explicit_failure() -> None:
     verified, reason = CommandService.verify_ack_state(feed_command, {"success": False})
     assert verified is False
     assert reason == "one_shot_device_reported_failure"
+
+
+def test_command_api_response_includes_delivery_metadata() -> None:
+    now = datetime(2026, 8, 8, 18, 0, tzinfo=timezone.utc)
+    record = SimpleNamespace(
+        id=42,
+        correlation_id="8c230c4e-431b-4e9b-a91f-f47c79f8d9b0",
+        requested_at=now,
+        requested_by="safety_watchdog",
+        target_device="heater_main",
+        command_type="set_power",
+        command_payload={"power": False},
+        delivery_policy="safety_critical",
+        status="dispatched",
+        dispatch_attempts=1,
+        max_attempts=4,
+        last_dispatched_at=now,
+        ack_deadline=now,
+        acknowledged_at=None,
+        verified_at=None,
+        completed_at=None,
+        error_message=None,
+    )
+
+    response = _command_response(record)
+    assert response.correlation_id == record.correlation_id
+    assert response.delivery_policy == "safety_critical"
+    assert response.dispatch_attempts == 1
+    assert response.max_attempts == 4
 
 
 def test_schedule_intensity_presets_are_bounded() -> None:
