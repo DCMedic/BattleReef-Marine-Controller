@@ -16,7 +16,6 @@ issue_client() {
     -CAcreateserial -out "$CERT_DIR/${name}.crt" -days 825 -sha256 \
     -extfile <(printf 'extendedKeyUsage=clientAuth\nkeyUsage=digitalSignature,keyEncipherment\n')
   rm -f "$CERT_DIR/${name}.csr"
-  chmod 600 "$CERT_DIR/${name}.key"
 }
 
 echo "Generating BattleReef development MQTT CA..."
@@ -35,14 +34,20 @@ openssl req -new -key "$CERT_DIR/server.key" -out "$CERT_DIR/server.csr" -subj "
 openssl x509 -req -in "$CERT_DIR/server.csr" -CA "$CA_CERT" -CAkey "$CA_KEY" \
   -CAcreateserial -out "$CERT_DIR/server.crt" -days 825 -sha256 -extfile "$CERT_DIR/server.ext"
 rm -f "$CERT_DIR/server.csr" "$CERT_DIR/server.ext"
-chmod 600 "$CERT_DIR/server.key" "$CA_KEY"
 
 issue_client "broker-health"
 issue_client "battlereef-backend"
 issue_client "simulator_node"
 issue_client "device-simulator"
 
+# The development PKI directory itself is 0700, while mounted key files must be
+# readable by the non-root users inside the Compose containers. Production key
+# permissions/storage should be managed by the deployment platform instead.
+chmod 600 "$CA_KEY"
 chmod 644 "$CERT_DIR"/*.crt
+chmod 644 "$CERT_DIR"/server.key "$CERT_DIR"/broker-health.key \
+  "$CERT_DIR"/battlereef-backend.key "$CERT_DIR"/simulator_node.key \
+  "$CERT_DIR"/device-simulator.key
 
 echo
 printf '%s\n' "Development PKI created in: $CERT_DIR" \
