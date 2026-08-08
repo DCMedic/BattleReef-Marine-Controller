@@ -12,9 +12,12 @@ from app.db.models.telemetry import TelemetryRecord
 from app.schemas.telemetry import TelemetryIngestRequest
 
 
-def _parse_timestamp(value: str) -> datetime:
-    normalized = value.replace("Z", "+00:00")
-    parsed = datetime.fromisoformat(normalized)
+def _parse_timestamp(value: str | datetime) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
 
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
@@ -22,25 +25,8 @@ def _parse_timestamp(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _record_numeric_value(record: TelemetryRecord) -> float | None:
-    if record.value_double is not None:
-        return float(record.value_double)
-
-    if record.value_text is None:
-        return None
-
-    normalized = str(record.value_text).strip().lower()
-
-    if normalized == "dry":
-        return 0.0
-
-    if normalized == "wet":
-        return 1.0
-
-    try:
-        return float(normalized)
-    except ValueError:
-        return None
+def _record_numeric_value(record: TelemetryRecord) -> float:
+    return float(record.value_double)
 
 
 class TelemetryService:
@@ -51,27 +37,23 @@ class TelemetryService:
     def ingest(self, payload: TelemetryIngestRequest) -> TelemetryRecord:
         parsed_time = _parse_timestamp(payload.timestamp)
 
-        numeric_value: float | None = None
-        text_value: str | None = None
-
-        if isinstance(payload.value, (int, float)):
-            numeric_value = float(payload.value)
-        else:
-            text_value = str(payload.value)
-
         record = self.model(
             sensor_key=payload.sensor_key,
             source_node=payload.source_node,
             reading_time=parsed_time,
-            value_double=numeric_value,
-            value_text=text_value,
+            value_double=float(payload.value),
             unit=payload.unit,
             quality=payload.quality,
         )
 
-        self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
+        try:
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+        except Exception:
+            self.db.rollback()
+            raise
+
         return record
 
     def latest(self, limit: int = 100) -> list[TelemetryRecord]:
@@ -161,21 +143,7 @@ class TelemetryService:
                 "value": _record_numeric_value(record),
             }
             for record in records
-            if _record_numeric_value(record) is not None
         ]
-
-        if not normalized_points:
-            return {
-                "sensor_key": sensor_key,
-                "unit": unit,
-                "days": days,
-                "max_points": max_points,
-                "points": [],
-                "latest_value": None,
-                "latest_timestamp": None,
-                "min_value": None,
-                "max_value": None,
-            }
 
         reduced_points = self._downsample_points(normalized_points, max_points=max_points)
         values = [float(point["value"]) for point in reduced_points]
