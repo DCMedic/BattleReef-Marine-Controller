@@ -297,10 +297,10 @@ class SafetyWatchdogService:
                 })
                 continue
 
-            raw_value = str(record.value_double if record.value_double is not None else record.value_text or "").lower()
+            raw_value = str(float(record.value_double))
             alert_key = f"leak_{sensor_key}"
 
-            if raw_value and raw_value != LEAK_EXPECTED_DRY_VALUE:
+            if raw_value != LEAK_EXPECTED_DRY_VALUE:
                 runtime_alerts.upsert(
                     key=alert_key,
                     severity="critical",
@@ -324,7 +324,7 @@ class SafetyWatchdogService:
                 results.append({
                     "check": sensor_key,
                     "status": "ok",
-                    "value": raw_value or LEAK_EXPECTED_DRY_VALUE,
+                    "value": raw_value,
                 })
 
         return results
