@@ -82,9 +82,10 @@ DEFAULT_SENSOR_THRESHOLDS: dict[str, dict[str, Any]] = {
     },
 }
 
-# Leak probes use the same numeric telemetry contract as every other sensor:
-# 0.0 = dry, 1.0 = wet. Any non-dry value is treated fail-safe as a leak.
-LEAK_EXPECTED_DRY_VALUE = _env_float("THRESHOLD_LEAK_DRY_VALUE", 0.0)
+# Leak probes use the numeric telemetry contract: 0.0 = dry, 1.0 = wet.
+# The watchdog normalizes readings to strings before comparison, so normalize
+# the configured numeric dry value the same way here.
+LEAK_EXPECTED_DRY_VALUE = str(_env_float("THRESHOLD_LEAK_DRY_VALUE", 0.0))
 LEAK_SENSOR_KEYS = ["leak_probe_a", "leak_probe_b"]
 
 
