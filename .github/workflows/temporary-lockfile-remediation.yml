@@ -24,7 +24,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm audit fix --package-lock-only
+          npm audit fix --package-lock-only || true
       - name: Commit lockfile if changed
         shell: bash
         run: |
