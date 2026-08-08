@@ -27,12 +27,16 @@ services:
     volumes:
       - ./ops/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./ops/mosquitto/acl.conf:/mosquitto/config/acl.conf:ro
-      - ./ops/mosquitto/certs:/mosquitto/certs:ro
+      - ./ops/mosquitto/certs/ca.crt:/mosquitto/certs/ca.crt:ro
+      - ./ops/mosquitto/certs/server.crt:/mosquitto/certs/server.crt:ro
+      - ./ops/mosquitto/certs/server.key:/mosquitto/certs/server.key:ro
+      - ./ops/mosquitto/certs/broker-health.crt:/mosquitto/certs/broker-health.crt:ro
+      - ./ops/mosquitto/certs/broker-health.key:/mosquitto/certs/broker-health.key:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "mosquitto_pub -h localhost -p 8883 --cafile /mosquitto/certs/ca.crt --cert /mosquitto/certs/battlereef-backend.crt --key /mosquitto/certs/battlereef-backend.key -t battlereef/cmd/healthcheck -m ok -q 1 || exit 1"
+          "mosquitto_pub -h localhost -p 8883 --cafile /mosquitto/certs/ca.crt --cert /mosquitto/certs/broker-health.crt --key /mosquitto/certs/broker-health.key -t battlereef/health/broker -m ok -q 1 || exit 1"
         ]
       interval: 10s
       timeout: 5s
@@ -48,7 +52,9 @@ services:
     volumes:
       - ./backend:/app
       - ./shared:/shared
-      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
+      - ./ops/mosquitto/certs/ca.crt:/run/battlereef-mqtt/ca.crt:ro
+      - ./ops/mosquitto/certs/battlereef-backend.crt:/run/battlereef-mqtt/battlereef-backend.crt:ro
+      - ./ops/mosquitto/certs/battlereef-backend.key:/run/battlereef-mqtt/battlereef-backend.key:ro
     command:
       - sh
       - -c
@@ -80,7 +86,9 @@ services:
       MQTT_CLIENT_KEY: /run/battlereef-mqtt/simulator_node.key
       PUBLISH_INTERVAL_SECONDS: 5
     volumes:
-      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
+      - ./ops/mosquitto/certs/ca.crt:/run/battlereef-mqtt/ca.crt:ro
+      - ./ops/mosquitto/certs/simulator_node.crt:/run/battlereef-mqtt/simulator_node.crt:ro
+      - ./ops/mosquitto/certs/simulator_node.key:/run/battlereef-mqtt/simulator_node.key:ro
     command: ["python", "/app/publish_telemetry.py"]
     depends_on:
       mosquitto:
@@ -101,7 +109,9 @@ services:
       MQTT_CLIENT_CERT: /run/battlereef-mqtt/device-simulator.crt
       MQTT_CLIENT_KEY: /run/battlereef-mqtt/device-simulator.key
     volumes:
-      - ./ops/mosquitto/certs:/run/battlereef-mqtt:ro
+      - ./ops/mosquitto/certs/ca.crt:/run/battlereef-mqtt/ca.crt:ro
+      - ./ops/mosquitto/certs/device-simulator.crt:/run/battlereef-mqtt/device-simulator.crt:ro
+      - ./ops/mosquitto/certs/device-simulator.key:/run/battlereef-mqtt/device-simulator.key:ro
     command: ["python", "/app/device_command_listener.py"]
     depends_on:
       mosquitto:
