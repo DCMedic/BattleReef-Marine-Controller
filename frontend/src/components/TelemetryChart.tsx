@@ -11,16 +11,9 @@ import {
 
 import type { TelemetryHistoryResponse } from "../types";
 
-type TelemetryChartProps = {
-  history: TelemetryHistoryResponse;
-};
-
 type ChartRow = {
   timestamp: string;
-  tank_temp_main?: number;
-  tank_ph_main?: number;
-  tank_salinity_main?: number;
-  sump_level_main?: number;
+  [sensorKey: string]: string | number | undefined;
 };
 
 function sensorLabel(sensorKey: string): string {
@@ -38,7 +31,7 @@ function sensorLabel(sensorKey: string): string {
   }
 }
 
-export function TelemetryChart({ history }: TelemetryChartProps) {
+export function TelemetryChart({ history }: { history: TelemetryHistoryResponse }) {
   const rowsByTimestamp = new Map<string, ChartRow>();
 
   for (const series of history.series) {
@@ -47,7 +40,7 @@ export function TelemetryChart({ history }: TelemetryChartProps) {
         timestamp: point.timestamp,
       };
 
-      existing[series.sensor_key as keyof ChartRow] = point.value;
+      existing[series.sensor_key] = point.value;
       rowsByTimestamp.set(point.timestamp, existing);
     }
   }
@@ -95,38 +88,10 @@ export function TelemetryChart({ history }: TelemetryChartProps) {
               labelFormatter={(value) => new Date(String(value)).toLocaleString()}
             />
             <Legend />
-            <Line
-              type="monotone"
-              dataKey="tank_temp_main"
-              name={sensorLabel("tank_temp_main")}
-              dot={false}
-              stroke="#1f77b4"
-              strokeWidth={2}
-            />
-            <Line
-              type="monotone"
-              dataKey="tank_ph_main"
-              name={sensorLabel("tank_ph_main")}
-              dot={false}
-              stroke="#2ca02c"
-              strokeWidth={2}
-            />
-            <Line
-              type="monotone"
-              dataKey="tank_salinity_main"
-              name={sensorLabel("tank_salinity_main")}
-              dot={false}
-              stroke="#ff7f0e"
-              strokeWidth={2}
-            />
-            <Line
-              type="monotone"
-              dataKey="sump_level_main"
-              name={sensorLabel("sump_level_main")}
-              dot={false}
-              stroke="#9467bd"
-              strokeWidth={2}
-            />
+            <Line type="monotone" dataKey="tank_temp_main" name={sensorLabel("tank_temp_main")} dot={false} stroke="#1f77b4" strokeWidth={2} />
+            <Line type="monotone" dataKey="tank_ph_main" name={sensorLabel("tank_ph_main")} dot={false} stroke="#2ca02c" strokeWidth={2} />
+            <Line type="monotone" dataKey="tank_salinity_main" name={sensorLabel("tank_salinity_main")} dot={false} stroke="#ff7f0e" strokeWidth={2} />
+            <Line type="monotone" dataKey="sump_level_main" name={sensorLabel("sump_level_main")} dot={false} stroke="#9467bd" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>
       </div>
