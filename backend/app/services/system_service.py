@@ -31,6 +31,10 @@ class SystemService:
         stmt = select(func.count()).select_from(CommandRecord).where(CommandRecord.status == status)
         return int(self.db.scalar(stmt) or 0)
 
+    def _count_commands_by_statuses(self, statuses: list[str]) -> int:
+        stmt = select(func.count()).select_from(CommandRecord).where(CommandRecord.status.in_(statuses))
+        return int(self.db.scalar(stmt) or 0)
+
     def _count_device_states(self) -> int:
         stmt = select(func.count()).select_from(DeviceStateRecord)
         return int(self.db.scalar(stmt) or 0)
@@ -39,10 +43,10 @@ class SystemService:
         return SystemCounts(
             telemetry_readings=self._count_telemetry(),
             commands_total=self._count_commands_total(),
-            commands_queued=self._count_commands_by_status("queued"),
-            commands_dispatched=self._count_commands_by_status("dispatched"),
+            commands_queued=self._count_commands_by_statuses(["queued", "retry_pending"]),
+            commands_dispatched=self._count_commands_by_statuses(["dispatched", "acknowledged", "verified"]),
             commands_completed=self._count_commands_by_status("completed"),
-            commands_failed=self._count_commands_by_status("failed"),
+            commands_failed=self._count_commands_by_statuses(["failed", "timeout"]),
             device_states=self._count_device_states(),
         )
 
