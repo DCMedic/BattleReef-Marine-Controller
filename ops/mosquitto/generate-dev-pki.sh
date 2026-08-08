@@ -37,6 +37,7 @@ openssl x509 -req -in "$CERT_DIR/server.csr" -CA "$CA_CERT" -CAkey "$CA_KEY" \
 rm -f "$CERT_DIR/server.csr" "$CERT_DIR/server.ext"
 chmod 600 "$CERT_DIR/server.key" "$CA_KEY"
 
+issue_client "broker-health"
 issue_client "battlereef-backend"
 issue_client "simulator_node"
 issue_client "device-simulator"
