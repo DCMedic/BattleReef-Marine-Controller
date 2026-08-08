@@ -20,12 +20,15 @@ from app.api.routes import (
     telemetry,
     thresholds,
 )
+from app.config import get_settings
 from app.core.api_self_test import run_api_self_test
 from app.db.session import SessionLocal
 from app.services.command_dispatcher import start_command_dispatcher
 from app.services.mqtt_listener import start_mqtt_listener
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
+
+settings = get_settings()
 
 
 def start_schedule_loop() -> None:
@@ -36,12 +39,15 @@ def start_schedule_loop() -> None:
                 engine = ScheduleEngine(db)
                 result = engine.evaluate()
                 print("SCHEDULE ENGINE:", result)
+            except Exception as exc:
+                db.rollback()
+                print(f"[SCHEDULE] Evaluation error: {exc}")
             finally:
                 db.close()
 
             time.sleep(30)
 
-    thread = threading.Thread(target=loop, daemon=True)
+    thread = threading.Thread(target=loop, name="schedule-engine", daemon=True)
     thread.start()
 
 
@@ -53,26 +59,30 @@ def start_safety_watchdog_loop() -> None:
                 watchdog = SafetyWatchdogService(db)
                 result = watchdog.evaluate()
                 print("SAFETY WATCHDOG:", result)
+            except Exception as exc:
+                db.rollback()
+                print(f"[WATCHDOG] Evaluation error: {exc}")
             finally:
                 db.close()
 
             time.sleep(15)
 
-    thread = threading.Thread(target=loop, daemon=True)
+    thread = threading.Thread(target=loop, name="safety-watchdog", daemon=True)
     thread.start()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="BattleReef Marine Controller API",
+        title=settings.app_name,
         version="0.1.0",
         description="Backend API for BattleReef aquarium monitoring, automation, and device control.",
+        debug=settings.app_debug,
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -80,11 +90,11 @@ def create_app() -> FastAPI:
     @app.get("/", tags=["system"])
     def root() -> dict[str, str]:
         return {
-            "name": "BattleReef Marine Controller API",
+            "name": settings.app_name,
             "status": "online",
         }
 
-    api_v1 = APIRouter(prefix="/api/v1")
+    api_v1 = APIRouter(prefix=settings.api_prefix)
 
     api_v1.include_router(health.router)
     api_v1.include_router(system.router)
