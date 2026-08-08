@@ -143,13 +143,15 @@ def _handle_ack(payload: dict, db: Session) -> None:
         print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
         return
 
-    if record.status not in {"dispatched", "acknowledged"}:
+    if record.status not in {"dispatched", "acknowledged", "retry_pending"}:
         reason = f"ack_invalid_command_state_{record.status}"
         _command_failure_alert(record, reason, security_event=True)
         print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
         return
 
-    if record.status == "dispatched":
+    # A valid ACK may arrive just after the timeout worker has moved a command
+    # to retry_pending. Accept it before the next publish and cancel that retry.
+    if record.status != "acknowledged":
         command_service.mark_acknowledged(record)
 
     verified, verification_reason = command_service.verify_ack_state(record, state_payload)
