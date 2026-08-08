@@ -13,13 +13,20 @@ class CommandCreateRequest(BaseModel):
 
 class CommandResponse(BaseModel):
     id: int
+    correlation_id: str
     requested_at: datetime
     requested_by: str
     target_device: str
     command_type: str
     command_payload: dict[str, Any]
+    delivery_policy: str
     status: str
+    dispatch_attempts: int
+    max_attempts: int
+    last_dispatched_at: datetime | None = None
+    ack_deadline: datetime | None = None
     acknowledged_at: datetime | None = None
+    verified_at: datetime | None = None
     completed_at: datetime | None = None
     error_message: str | None = None
 
