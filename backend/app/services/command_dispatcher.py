@@ -8,6 +8,7 @@ import paho.mqtt.client as mqtt
 from app.config import get_settings
 from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
+from app.mqtt.security import configure_mqtt_security
 from app.mqtt.topics import device_command_topic
 from app.services.command_service import CommandService
 
@@ -37,16 +38,14 @@ def _connect_client() -> mqtt.Client:
         mqtt.CallbackAPIVersion.VERSION2,
         client_id=f"{settings.mqtt_client_id}-dispatcher",
     )
-
-    if settings.mqtt_username:
-        client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
+    configure_mqtt_security(client, settings)
 
     while True:
         try:
-            print(f"[DISPATCH] Attempting connection to {settings.mqtt_host}:{settings.mqtt_port}")
+            print(f"[DISPATCH] Attempting secure MQTT connection to {settings.mqtt_host}:{settings.mqtt_port}")
             client.connect(settings.mqtt_host, settings.mqtt_port, keepalive=60)
             client.loop_start()
-            print("[DISPATCH] Connected to MQTT broker")
+            print("[DISPATCH] Connected to authenticated MQTT broker")
             return client
         except Exception as exc:
             print(f"[DISPATCH] MQTT connection failed: {exc}. Retrying in 5 seconds...")

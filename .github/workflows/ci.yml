@@ -16,13 +16,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Reject tracked generated files and local environment files
+      - name: Reject tracked generated files, local environments, and MQTT secrets
         shell: bash
         run: |
           set -euo pipefail
-          bad_files="$(git ls-files | grep -E '(^|/)(node_modules|__pycache__)(/|$)|\.pyc$|(^|/)\.env$' || true)"
+          bad_files="$(git ls-files | grep -E '(^|/)(node_modules|__pycache__)(/|$)|\.pyc$|(^|/)\.env$|ops/mosquitto/certs/.*\.(key|crt|pem|p12|pfx)$' || true)"
           if [[ -n "$bad_files" ]]; then
-            echo "The following generated/local files must not be tracked:"
+            echo "The following generated/local/secret files must not be tracked:"
             echo "$bad_files"
             exit 1
           fi
@@ -47,6 +47,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://battlereef:changeme@localhost:5432/battlereef
           MQTT_HOST: localhost
+          MQTT_TLS_ENABLED: "false"
         run: pytest
 
   frontend:
@@ -76,3 +77,60 @@ jobs:
         run: cp .env.example .env
       - name: Validate Compose configuration
         run: docker compose config --quiet
+
+  mqtt-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare development PKI and environment
+        run: |
+          cp .env.example .env
+          bash ops/mosquitto/generate-dev-pki.sh
+      - name: Start secured broker
+        run: docker compose up -d mosquitto
+      - name: Wait for broker health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in {1..30}; do
+            status="$(docker inspect --format='{{.State.Health.Status}}' battlereef-mosquitto 2>/dev/null || true)"
+            if [[ "$status" == "healthy" ]]; then
+              exit 0
+            fi
+            if [[ "$status" == "unhealthy" ]]; then
+              docker logs battlereef-mosquitto
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs battlereef-mosquitto
+          exit 1
+      - name: Verify authenticated client succeeds
+        run: |
+          docker run --rm --user 0:0 \
+            --network battlereef-marine-controller_default \
+            -v "$PWD/ops/mosquitto/certs:/certs:ro" \
+            eclipse-mosquitto:2 mosquitto_pub \
+            -h mosquitto -p 8883 \
+            --cafile /certs/ca.crt \
+            --cert /certs/battlereef-backend.crt \
+            --key /certs/battlereef-backend.key \
+            -t battlereef/cmd/healthcheck -m ok -q 1
+      - name: Verify client without certificate is rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          if docker run --rm --user 0:0 \
+              --network battlereef-marine-controller_default \
+              -v "$PWD/ops/mosquitto/certs/ca.crt:/certs/ca.crt:ro" \
+              eclipse-mosquitto:2 mosquitto_pub \
+              -h mosquitto -p 8883 \
+              --cafile /certs/ca.crt \
+              -t battlereef/cmd/healthcheck -m unauthorized -q 1; then
+            echo "Broker accepted an MQTT client without a certificate."
+            exit 1
+          fi
+          echo "Unauthenticated MQTT client correctly rejected."
+      - name: Broker logs on failure
+        if: failure()
+        run: docker logs battlereef-mosquitto

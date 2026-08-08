@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# MQTT PKI material - generated locally, never commit private keys/cert bundles
+ops/mosquitto/certs/
+!ops/mosquitto/certs/.gitkeep
+
 # Python
 __pycache__/
 *.py[cod]

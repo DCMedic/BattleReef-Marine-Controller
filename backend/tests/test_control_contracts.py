@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from app.api.routes.commands import _command_response
 from app.core.runtime_alerts import runtime_alerts
 from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE
 from app.schemas.command import CommandCreateRequest
 from app.services.command_service import CommandService
+from app.services.mqtt_listener import _ack_topic_identity, _telemetry_topic_identity
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
 from app.services.telemetry_service import _parse_timestamp
@@ -20,6 +23,20 @@ def test_parse_timestamp_normalizes_iso_zulu() -> None:
     parsed = _parse_timestamp("2026-08-08T12:00:00Z")
     assert parsed.tzinfo is not None
     assert parsed.utcoffset().total_seconds() == 0
+
+
+def test_authenticated_mqtt_topic_namespaces_bind_identity() -> None:
+    assert _telemetry_topic_identity("battlereef/telemetry/node-17/tank_temp_main") == (
+        "node-17",
+        "tank_temp_main",
+    )
+    assert _ack_topic_identity("battlereef/ack/heater_main") == "heater_main"
+
+    with pytest.raises(ValueError, match="invalid_telemetry_topic_namespace"):
+        _telemetry_topic_identity("battlereef/telemetry/tank_temp_main")
+
+    with pytest.raises(ValueError, match="invalid_ack_topic_namespace"):
+        _ack_topic_identity("battlereef/ack/heater_main/forged")
 
 
 def test_command_intent_normalizes_power_variants() -> None:
