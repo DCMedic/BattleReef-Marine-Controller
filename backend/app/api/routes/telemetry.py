@@ -39,7 +39,7 @@ def get_latest_telemetry(
                 sensor_key=record.sensor_key,
                 source_node=record.source_node,
                 timestamp=record.reading_time,
-                value=record.value_double if record.value_double is not None else record.value_text,
+                value=record.value_double,
                 unit=record.unit,
                 quality=record.quality,
             )
