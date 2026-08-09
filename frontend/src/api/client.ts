@@ -11,24 +11,33 @@ export function roleAllows(actual: string, required: string): boolean {
   return (ROLE_LEVEL[actual] ?? -1) >= (ROLE_LEVEL[required] ?? Number.MAX_SAFE_INTEGER);
 }
 
+function clearLegacyPersistentAuth(): void {
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(PRINCIPAL_KEY);
+}
+
 export function getAccessToken(): string | null {
-  return window.localStorage.getItem(TOKEN_KEY);
+  clearLegacyPersistentAuth();
+  return window.sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function getStoredPrincipal(): AuthPrincipal | null {
-  const raw = window.localStorage.getItem(PRINCIPAL_KEY);
+  clearLegacyPersistentAuth();
+  const raw = window.sessionStorage.getItem(PRINCIPAL_KEY);
   if (!raw) return null;
   try { return JSON.parse(raw) as AuthPrincipal; } catch { return null; }
 }
 
 export function storeSession(session: LoginResponse): void {
-  window.localStorage.setItem(TOKEN_KEY, session.access_token);
-  window.localStorage.setItem(PRINCIPAL_KEY, JSON.stringify({ username: session.username, role: session.role, principal_type: session.principal_type }));
+  clearLegacyPersistentAuth();
+  window.sessionStorage.setItem(TOKEN_KEY, session.access_token);
+  window.sessionStorage.setItem(PRINCIPAL_KEY, JSON.stringify({ username: session.username, role: session.role, principal_type: session.principal_type }));
 }
 
 export function clearSession(): void {
-  window.localStorage.removeItem(TOKEN_KEY);
-  window.localStorage.removeItem(PRINCIPAL_KEY);
+  clearLegacyPersistentAuth();
+  window.sessionStorage.removeItem(TOKEN_KEY);
+  window.sessionStorage.removeItem(PRINCIPAL_KEY);
   window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
 }
 
