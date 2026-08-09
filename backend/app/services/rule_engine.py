@@ -25,7 +25,7 @@ class RuleEngineService:
         record, created = self.command_service.create_if_not_duplicate(payload)
         return {"action_taken": created, "command_id": record.id, "status": record.status, "target_device": target_device, "reason": "command_created" if created else "duplicate_command_suppressed"}
 
-    def evaluate_temperature_rule(self, sensor_key: str = "tank_temp_main", target_device: str = "heater_main", low_threshold_f: float = 77.5, high_threshold_f: float = 78.3) -> dict:
+    def evaluate_temperature_rule(self, sensor_key: str = "tank_temp_main", target_device: str = "heater_main", low_threshold_f: float = 77.5, high_threshold_f: float = 78.3, max_trusted_age_seconds: int = 120) -> dict:
         current_mode = self.device_state_service.get_mode(target_device)
         if current_mode == "manual":
             return {"action_taken": False, "reason": "device_in_manual_mode", "target_device": target_device, "mode": current_mode}
@@ -35,6 +35,10 @@ class RuleEngineService:
             return {"action_taken": False, "reason": "no_trusted_temperature_reading", "target_device": target_device, "mode": current_mode}
 
         latest = records[0]
+        age_seconds = (datetime.now(timezone.utc) - latest.reading_time).total_seconds()
+        if age_seconds > max_trusted_age_seconds:
+            return {"action_taken": False, "reason": "trusted_temperature_reading_stale", "target_device": target_device, "mode": current_mode, "age_seconds": round(age_seconds, 1)}
+
         temperature_f = latest.value_double
         if temperature_f < low_threshold_f:
             result = self._create_auto_command_if_needed(target_device, "set_power", {"power": True, "mode": "auto", "reason": "temperature_below_low_threshold", "temperature_f": round(temperature_f, 2), "low_threshold_f": low_threshold_f, "high_threshold_f": high_threshold_f}, "rule_engine.temperature_control")
