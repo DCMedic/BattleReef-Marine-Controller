@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.authz import Principal, require_role
 from app.db.session import get_db
 from app.schemas.audit import AuditEventCreate
 from app.schemas.command import CommandCreateRequest, CommandListResponse, CommandResponse
@@ -35,49 +36,40 @@ def _command_response(record) -> CommandResponse:
 
 
 @router.get("", response_model=CommandListResponse)
-def list_commands(
-    limit: int = Query(default=50, ge=1, le=500),
-    db: Session = Depends(get_db),
-):
-    records = CommandService(db).list_recent(limit=limit)
-    return CommandListResponse(items=[_command_response(record) for record in records])
+def list_commands(limit: int = Query(default=50, ge=1, le=500), db: Session = Depends(get_db)):
+    return CommandListResponse(items=[_command_response(r) for r in CommandService(db).list_recent(limit=limit)])
 
 
 @router.post("", response_model=CommandResponse)
 def create_command(
     payload: CommandCreateRequest,
+    principal: Principal = Depends(require_role("operator")),
     db: Session = Depends(get_db),
 ):
-    record = CommandService(db).create_command(payload)
-    AuditService(db).append(
-        AuditEventCreate(
-            event_type="operator.command_created",
-            source="api.commands",
-            actor_type="operator",
-            actor_id=payload.requested_by or "api_client",
-            entity_type="command",
-            entity_id=str(record.id),
-            correlation_id=record.correlation_id,
-            message=f"Command {record.id} created for {record.target_device}.",
-            details={
-                "target_device": record.target_device,
-                "command_type": record.command_type,
-                "delivery_policy": record.delivery_policy,
-            },
-        )
-    )
+    authenticated_payload = payload.model_copy(update={"requested_by": principal.username})
+    record = CommandService(db).create_command(authenticated_payload)
+    AuditService(db).append(AuditEventCreate(
+        event_type="operator.command_created", source="api.commands", actor_type="user",
+        actor_id=principal.username, entity_type="command", entity_id=str(record.id),
+        correlation_id=record.correlation_id, message=f"Command {record.id} created for {record.target_device}.",
+        details={"role": principal.role, "target_device": record.target_device, "command_type": record.command_type, "delivery_policy": record.delivery_policy},
+    ))
     return _command_response(record)
 
 
 @router.post("/evaluate/temperature")
 def evaluate_temperature_rule(
+    principal: Principal = Depends(require_role("engineer")),
     db: Session = Depends(get_db),
 ):
+    AuditService(db).append(AuditEventCreate(event_type="operator.rule_evaluation_requested", source="api.commands", actor_type="user", actor_id=principal.username, message="Manual temperature rule evaluation requested", details={"role": principal.role}))
     return RuleEngineService(db).evaluate_temperature_rule()
 
 
 @router.post("/evaluate/schedule")
 def evaluate_schedule_rules(
+    principal: Principal = Depends(require_role("engineer")),
     db: Session = Depends(get_db),
 ):
+    AuditService(db).append(AuditEventCreate(event_type="operator.schedule_evaluation_requested", source="api.commands", actor_type="user", actor_id=principal.username, message="Manual schedule evaluation requested", details={"role": principal.role}))
     return ScheduleEngine(db).evaluate()
