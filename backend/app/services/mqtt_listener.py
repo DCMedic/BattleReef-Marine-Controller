@@ -13,8 +13,10 @@ from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
 from app.mqtt.security import configure_mqtt_security
 from app.mqtt.topics import TOPIC_ACK_SUBSCRIBE_ALL, TOPIC_TELEMETRY_SUBSCRIBE_ALL
+from app.schemas.audit import AuditEventCreate
 from app.schemas.device_state import DeviceStateUpsertRequest
 from app.schemas.telemetry import TelemetryIngestRequest
+from app.services.audit_service import AuditService
 from app.services.command_service import CommandService
 from app.services.device_state_service import DeviceStateService
 from app.services.rule_engine import RuleEngineService
@@ -25,6 +27,36 @@ settings = get_settings()
 _mqtt_client: Optional[mqtt.Client] = None
 _listener_started = False
 _listener_lock = threading.Lock()
+
+
+def _append_audit(
+    db: Session,
+    *,
+    event_type: str,
+    message: str,
+    severity: str = "info",
+    outcome: str = "success",
+    actor_id: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    correlation_id: str | None = None,
+    details: dict | None = None,
+) -> None:
+    AuditService(db).append(
+        AuditEventCreate(
+            event_type=event_type,
+            severity=severity,
+            outcome=outcome,
+            source="mqtt_listener",
+            actor_type="mqtt_identity" if actor_id else "service",
+            actor_id=actor_id or "mqtt_listener",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            correlation_id=correlation_id,
+            message=message,
+            details=details or {},
+        )
+    )
 
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
@@ -65,9 +97,7 @@ def _handle_telemetry(payload: dict, db: Session, topic: str) -> None:
     sensor_key = payload.get("sensor_key")
 
     if source_node != authenticated_node:
-        raise ValueError(
-            f"telemetry_identity_mismatch_topic_{authenticated_node}_payload_{source_node}"
-        )
+        raise ValueError(f"telemetry_identity_mismatch_topic_{authenticated_node}_payload_{source_node}")
     if sensor_key != topic_sensor:
         raise ValueError(f"telemetry_sensor_mismatch_topic_{topic_sensor}_payload_{sensor_key}")
 
@@ -83,9 +113,7 @@ def _handle_telemetry(payload: dict, db: Session, topic: str) -> None:
         quality=payload.get("quality", "good"),
         source_node=authenticated_node,
     )
-
-    telemetry_service = TelemetryService(db)
-    record = telemetry_service.ingest(telemetry)
+    record = TelemetryService(db).ingest(telemetry)
 
     print(
         f"[MQTT] Ingested authenticated telemetry id={record.id} "
@@ -94,9 +122,7 @@ def _handle_telemetry(payload: dict, db: Session, topic: str) -> None:
     )
 
     if record.sensor_key == "tank_temp_main":
-        rule_engine = RuleEngineService(db)
-        result = rule_engine.evaluate_temperature_rule()
-
+        result = RuleEngineService(db).evaluate_temperature_rule()
         if result.get("action_taken"):
             print(
                 f"[RULE] Temperature rule triggered command_id={result['command_id']} "
@@ -126,6 +152,27 @@ def _command_failure_alert(record, reason: str, *, security_event: bool = False)
     )
 
 
+def _audit_ack_failure(db: Session, record, authenticated_device: str, reason: str, *, security_event: bool) -> None:
+    _append_audit(
+        db,
+        event_type="security.ack_rejected" if security_event else "command.ack_verification_failed",
+        severity="critical" if security_event or record.delivery_policy == "safety_critical" else "warning",
+        outcome="rejected" if security_event else "failed",
+        actor_id=authenticated_device,
+        entity_type="command",
+        entity_id=str(record.id),
+        correlation_id=record.correlation_id,
+        message=f"ACK for command {record.id} failed verification: {reason}.",
+        details={
+            "reason": reason,
+            "target_device": record.target_device,
+            "authenticated_device": authenticated_device,
+            "command_type": record.command_type,
+            "delivery_policy": record.delivery_policy,
+        },
+    )
+
+
 def _handle_ack(payload: dict, db: Session, topic: str) -> None:
     authenticated_device = _ack_topic_identity(topic)
     command_id = payload.get("command_id")
@@ -137,17 +184,26 @@ def _handle_ack(payload: dict, db: Session, topic: str) -> None:
     if command_id is None or device_key is None:
         raise ValueError("ACK payload must include command_id and device_key")
     if device_key != authenticated_device:
-        raise ValueError(
-            f"ack_identity_mismatch_topic_{authenticated_device}_payload_{device_key}"
-        )
+        raise ValueError(f"ack_identity_mismatch_topic_{authenticated_device}_payload_{device_key}")
     if not isinstance(state_payload, dict):
         raise ValueError("ACK state_payload must be an object")
 
     command_service = CommandService(db)
     device_state_service = DeviceStateService(db)
-
     record = command_service.get_by_id(int(command_id))
     if record is None:
+        _append_audit(
+            db,
+            event_type="security.ack_unknown_command",
+            severity="warning",
+            outcome="rejected",
+            actor_id=authenticated_device,
+            entity_type="command",
+            entity_id=str(command_id),
+            correlation_id=correlation_id,
+            message=f"Authenticated device {authenticated_device} acknowledged an unknown command.",
+            details={"topic": topic},
+        )
         print(f"[ACK] No command found for command_id={command_id}")
         return
 
@@ -159,20 +215,20 @@ def _handle_ack(payload: dict, db: Session, topic: str) -> None:
         reason = f"ack_device_mismatch_expected_{record.target_device}_got_{authenticated_device}"
         command_service.mark_failed(record, reason)
         _command_failure_alert(record, reason, security_event=True)
-        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        _audit_ack_failure(db, record, authenticated_device, reason, security_event=True)
         return
 
     if correlation_id is not None and correlation_id != record.correlation_id:
         reason = "ack_correlation_id_mismatch"
         command_service.mark_failed(record, reason)
         _command_failure_alert(record, reason, security_event=True)
-        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        _audit_ack_failure(db, record, authenticated_device, reason, security_event=True)
         return
 
     if record.status not in {"dispatched", "acknowledged", "retry_pending"}:
         reason = f"ack_invalid_command_state_{record.status}"
         _command_failure_alert(record, reason, security_event=True)
-        print(f"[ACK] REJECTED command_id={command_id} reason={reason}")
+        _audit_ack_failure(db, record, authenticated_device, reason, security_event=True)
         return
 
     if record.status != "acknowledged":
@@ -182,14 +238,10 @@ def _handle_ack(payload: dict, db: Session, topic: str) -> None:
     if not verified:
         command_service.mark_failed(record, verification_reason)
         _command_failure_alert(record, verification_reason)
-        print(
-            f"[ACK] VERIFICATION_FAILED command_id={record.id} "
-            f"device_key={authenticated_device} reason={verification_reason}"
-        )
+        _audit_ack_failure(db, record, authenticated_device, verification_reason, security_event=False)
         return
 
     command_service.mark_verified(record)
-
     state_record = device_state_service.upsert(
         DeviceStateUpsertRequest(
             device_key=authenticated_device,
@@ -197,9 +249,23 @@ def _handle_ack(payload: dict, db: Session, topic: str) -> None:
             state_source=state_source,
         )
     )
-
     command_service.mark_completed(record)
     runtime_alerts.clear(f"command_delivery_{record.id}")
+    _append_audit(
+        db,
+        event_type="command.completed_verified",
+        actor_id=authenticated_device,
+        entity_type="command",
+        entity_id=str(record.id),
+        correlation_id=record.correlation_id,
+        message=f"Command {record.id} completed after authenticated ACK and physical-state verification.",
+        details={
+            "target_device": record.target_device,
+            "command_type": record.command_type,
+            "device_state_id": state_record.id,
+            "state_source": state_source,
+        },
+    )
 
     print(
         f"[ACK] VERIFIED command_id={record.id} correlation_id={record.correlation_id} "
@@ -223,13 +289,22 @@ def on_message(client, userdata, msg):
             print(f"[MQTT] Received message on unhandled topic {msg.topic}")
 
     except Exception as exc:
+        topic = getattr(msg, "topic", "<unknown>")
         if db is not None:
             db.rollback()
-        topic = getattr(msg, "topic", "<unknown>")
-        print(
-            f"[MQTT] Processing error for topic '{topic}': {exc} | "
-            f"payload={json.dumps(payload)}"
-        )
+            try:
+                _append_audit(
+                    db,
+                    event_type="security.mqtt_message_rejected",
+                    severity="warning",
+                    outcome="rejected",
+                    message=f"MQTT message on {topic} was rejected during validation or processing.",
+                    details={"topic": topic, "error": str(exc), "payload_keys": sorted(payload.keys())},
+                )
+            except Exception as audit_exc:
+                db.rollback()
+                print(f"[AUDIT] Failed to persist MQTT rejection event: {audit_exc}")
+        print(f"[MQTT] Processing error for topic '{topic}': {exc}")
 
     finally:
         if db is not None:
@@ -268,6 +343,5 @@ def start_mqtt_listener():
 
         thread = threading.Thread(target=_mqtt_worker, name="mqtt-listener", daemon=True)
         thread.start()
-
         _listener_started = True
         print("[MQTT] Listener thread started")

@@ -7,6 +7,7 @@ from app.api.routes.commands import _command_response
 from app.core.runtime_alerts import runtime_alerts
 from app.core.sensor_thresholds import LEAK_EXPECTED_DRY_VALUE
 from app.schemas.command import CommandCreateRequest
+from app.services.audit_service import AuditService, GENESIS_HASH
 from app.services.command_service import CommandService
 from app.services.mqtt_listener import _ack_topic_identity, _telemetry_topic_identity
 from app.services.safety_watchdog import SafetyWatchdogService
@@ -23,6 +24,32 @@ def test_parse_timestamp_normalizes_iso_zulu() -> None:
     parsed = _parse_timestamp("2026-08-08T12:00:00Z")
     assert parsed.tzinfo is not None
     assert parsed.utcoffset().total_seconds() == 0
+
+
+def test_audit_hash_is_deterministic_and_tamper_sensitive() -> None:
+    values = dict(
+        occurred_at=datetime(2026, 8, 8, 18, 58, tzinfo=timezone.utc),
+        event_type="security.ack_rejected",
+        severity="critical",
+        outcome="rejected",
+        source="mqtt_listener",
+        actor_type="mqtt_identity",
+        actor_id="heater_main",
+        entity_type="command",
+        entity_id="42",
+        correlation_id="corr-42",
+        message="ACK rejected.",
+        details={"reason": "ack_correlation_id_mismatch"},
+        previous_hash=GENESIS_HASH,
+    )
+    first = AuditService.calculate_hash(**values)
+    second = AuditService.calculate_hash(**values)
+    assert first == second
+    assert len(first) == 64
+
+    tampered = dict(values)
+    tampered["message"] = "ACK accepted."
+    assert AuditService.calculate_hash(**tampered) != first
 
 
 def test_authenticated_mqtt_topic_namespaces_bind_identity() -> None:
