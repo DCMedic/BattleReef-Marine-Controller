@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 const TOKEN_KEY = "battlereef.access_token";
 const PRINCIPAL_KEY = "battlereef.principal";
+export const AUTH_CLEARED_EVENT = "battlereef-auth-cleared";
 
 export type AuthPrincipal = { username: string; role: string; principal_type: string };
 export type LoginResponse = AuthPrincipal & { access_token: string; token_type: string; expires_in: number };
@@ -28,6 +29,7 @@ export function storeSession(session: LoginResponse): void {
 export function clearSession(): void {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(PRINCIPAL_KEY);
+  window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
 }
 
 function authHeaders(extra: Record<string, string> = {}): HeadersInit {
