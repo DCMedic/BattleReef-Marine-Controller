@@ -19,7 +19,7 @@ def _response(record) -> ScheduleResponse:
 
 def _audit(db: Session, principal: Principal, event_type: str, record, message: str) -> None:
     AuditService(db).append(AuditEventCreate(
-        event_type=event_type, source="api.schedules", actor_type="user", actor_id=principal.username,
+        event_type=event_type, source="api.schedules", actor_type=principal.principal_type, actor_id=principal.username,
         entity_type="schedule", entity_id=str(record.id), message=message,
         details={"role": principal.role, "device_key": record.device_key, "schedule_type": record.schedule_type, "name": record.name, "enabled": record.enabled, "config_payload": record.config_payload},
     ))
@@ -50,7 +50,7 @@ def update_schedule(schedule_id: int, payload: ScheduleUpdateRequest, principal:
 def seed_default_schedules(principal: Principal = Depends(require_role("engineer")), db: Session = Depends(get_db)) -> ScheduleListResponse:
     records = ScheduleService(db).seed_defaults_if_empty()
     AuditService(db).append(AuditEventCreate(
-        event_type="operator.schedule_defaults_seeded", source="api.schedules", actor_type="user", actor_id=principal.username,
+        event_type="operator.schedule_defaults_seeded", source="api.schedules", actor_type=principal.principal_type, actor_id=principal.username,
         entity_type="schedule_collection", message=f"Default schedule seed operation completed with {len(records)} schedule(s).",
         details={"role": principal.role, "schedule_ids": [r.id for r in records]},
     ))
