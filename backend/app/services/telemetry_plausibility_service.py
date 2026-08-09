@@ -14,22 +14,28 @@ class TelemetryPlausibilityService:
 
     ABSOLUTE_BOUNDS: dict[str, tuple[float, float]] = {
         "tank_temp_main": (50.0, 100.0),
+        "tank_temp_verify": (50.0, 100.0),
         "tank_ph_main": (5.5, 9.5),
         "tank_salinity_main": (20.0, 45.0),
         "sump_level_main": (0.0, 24.0),
+        "sump_level_verify": (0.0, 24.0),
         "flow_return_main": (0.0, 2000.0),
         "flow_manifold_main": (0.0, 1000.0),
+        "rpm_return_pump_main": (0.0, 10000.0),
         "power_monitor_main": (0.0, 2500.0),
         "power_heater_main": (0.0, 1000.0),
+        "power_return_pump_main": (0.0, 1000.0),
         "dissolved_oxygen_main": (0.0, 20.0),
         "orp_main": (-500.0, 1000.0),
     }
 
     MAX_STEP: dict[str, float] = {
         "tank_temp_main": 2.0,
+        "tank_temp_verify": 2.0,
         "tank_ph_main": 0.35,
         "tank_salinity_main": 1.5,
         "sump_level_main": 1.5,
+        "sump_level_verify": 1.5,
         "dissolved_oxygen_main": 1.5,
         "orp_main": 125.0,
     }
@@ -76,4 +82,8 @@ class TelemetryPlausibilityService:
             if len(sump) >= 2 and abs(float(sump[0].value_double) - float(sump[-1].value_double)) < 0.25:
                 reasons.append("salinity_change_not_supported_by_sump_level")
 
-        return {"plausible": not reasons, "quality": "good" if not reasons else "suspect", "reasons": reasons}
+        return {
+            "plausible": not reasons,
+            "quality": "good" if not reasons else "suspect",
+            "reasons": reasons,
+        }
