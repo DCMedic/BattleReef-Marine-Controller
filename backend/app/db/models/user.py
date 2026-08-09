@@ -15,6 +15,8 @@ class UserRecord(Base):
     role: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     principal_type: Mapped[str] = mapped_column(String(20), nullable=False, default="user", index=True)
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
