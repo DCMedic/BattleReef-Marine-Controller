@@ -1,0 +1,85 @@
+{
+  "package": "BattleReef Independent Verification Package",
+  "version": "1.0.0",
+  "principles": [
+    "independent_evidence",
+    "electrical_isolation",
+    "fail_safe_unknown_state",
+    "no_single_sensor_authority",
+    "calibration_traceability"
+  ],
+  "channels": [
+    {
+      "sensor_key": "power_heater_main",
+      "purpose": "Verify heater relay state independently of the heater controller",
+      "signal": "real_power_watts",
+      "minimum_resolution": 1.0,
+      "sample_interval_seconds_max": 10,
+      "electrical_requirement": "galvanically isolated, listed/certified mains measurement interface",
+      "installation_note": "Do not route mains conductors through unlisted hobby electronics. Use an enclosed isolated energy-monitoring device or current transformer interface installed according to local electrical code."
+    },
+    {
+      "sensor_key": "power_return_pump_main",
+      "purpose": "Verify that the return pump circuit is actually consuming power",
+      "signal": "real_power_watts",
+      "minimum_resolution": 1.0,
+      "sample_interval_seconds_max": 10,
+      "electrical_requirement": "galvanically isolated, listed/certified mains measurement interface",
+      "installation_note": "Power evidence complements flow evidence and must be measured independently of the pump controller's own state report."
+    },
+    {
+      "sensor_key": "flow_return_main",
+      "purpose": "Verify hydraulic output from the return pump",
+      "signal": "flow_gph",
+      "minimum_resolution": 5.0,
+      "sample_interval_seconds_max": 10,
+      "installation_note": "Use a saltwater-compatible flow sensor sized so normal operating flow is well inside the sensor's calibrated range."
+    },
+    {
+      "sensor_key": "rpm_return_pump_main",
+      "purpose": "Optional third return-pump evidence channel",
+      "signal": "rpm",
+      "minimum_resolution": 10.0,
+      "sample_interval_seconds_max": 10,
+      "optional": true,
+      "installation_note": "Use only independent tach feedback or a trusted hardware feedback channel; do not mirror the commanded speed value."
+    },
+    {
+      "sensor_key": "tank_temp_verify",
+      "purpose": "Challenge the primary tank temperature sensor",
+      "signal": "temperature_f",
+      "minimum_resolution": 0.1,
+      "sample_interval_seconds_max": 15,
+      "installation_note": "Place on a separate input path and preferably a separate probe technology or interface from tank_temp_main."
+    },
+    {
+      "sensor_key": "sump_level_verify",
+      "purpose": "Challenge the primary sump-level sensor",
+      "signal": "level_inches",
+      "minimum_resolution": 0.1,
+      "sample_interval_seconds_max": 15,
+      "installation_note": "Use a physically independent sensing method or independent probe/input path where practical."
+    }
+  ],
+  "verification_thresholds": {
+    "heater_power_on_min_w": 10.0,
+    "return_pump_power_on_min_w": 5.0,
+    "return_flow_on_min_gph": 150.0,
+    "return_pump_rpm_on_min": 300.0,
+    "temperature_pair_max_delta_f": 1.5,
+    "sump_level_pair_max_delta_in": 0.5,
+    "max_evidence_age_seconds": 120
+  },
+  "commissioning": {
+    "minimum_stable_samples": 30,
+    "required_test_states": [
+      "heater_off",
+      "heater_on",
+      "return_pump_off",
+      "return_pump_on",
+      "primary_temperature_probe_offset_check",
+      "primary_sump_level_offset_check"
+    ],
+    "acceptance": "Every channel must report quality=good, remain within configured disagreement limits during a stable test, and demonstrate the expected state transition before automatic physical verification is considered commissioned."
+  }
+}
