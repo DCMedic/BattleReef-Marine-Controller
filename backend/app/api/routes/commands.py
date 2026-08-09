@@ -49,7 +49,7 @@ def create_command(
     authenticated_payload = payload.model_copy(update={"requested_by": principal.username})
     record = CommandService(db).create_command(authenticated_payload)
     AuditService(db).append(AuditEventCreate(
-        event_type="operator.command_created", source="api.commands", actor_type="user",
+        event_type="operator.command_created", source="api.commands", actor_type=principal.principal_type,
         actor_id=principal.username, entity_type="command", entity_id=str(record.id),
         correlation_id=record.correlation_id, message=f"Command {record.id} created for {record.target_device}.",
         details={"role": principal.role, "target_device": record.target_device, "command_type": record.command_type, "delivery_policy": record.delivery_policy},
@@ -62,7 +62,7 @@ def evaluate_temperature_rule(
     principal: Principal = Depends(require_role("engineer")),
     db: Session = Depends(get_db),
 ):
-    AuditService(db).append(AuditEventCreate(event_type="operator.rule_evaluation_requested", source="api.commands", actor_type="user", actor_id=principal.username, message="Manual temperature rule evaluation requested", details={"role": principal.role}))
+    AuditService(db).append(AuditEventCreate(event_type="operator.rule_evaluation_requested", source="api.commands", actor_type=principal.principal_type, actor_id=principal.username, message="Manual temperature rule evaluation requested", details={"role": principal.role}))
     return RuleEngineService(db).evaluate_temperature_rule()
 
 
@@ -71,5 +71,5 @@ def evaluate_schedule_rules(
     principal: Principal = Depends(require_role("engineer")),
     db: Session = Depends(get_db),
 ):
-    AuditService(db).append(AuditEventCreate(event_type="operator.schedule_evaluation_requested", source="api.commands", actor_type="user", actor_id=principal.username, message="Manual schedule evaluation requested", details={"role": principal.role}))
+    AuditService(db).append(AuditEventCreate(event_type="operator.schedule_evaluation_requested", source="api.commands", actor_type=principal.principal_type, actor_id=principal.username, message="Manual schedule evaluation requested", details={"role": principal.role}))
     return ScheduleEngine(db).evaluate()
