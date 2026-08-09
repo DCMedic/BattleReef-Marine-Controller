@@ -20,8 +20,16 @@ SCENARIOS = {
     "salinity_spike": ("tank_salinity_main", 42.0, "ppt"),
     "return_flow_zero": ("flow_return_main", 0.0, "gph"),
     "return_flow_present": ("flow_return_main", 820.0, "gph"),
+    "return_pump_power_present": ("power_return_pump_main", 85.0, "W"),
+    "return_pump_power_zero": ("power_return_pump_main", 0.0, "W"),
+    "return_pump_rpm_present": ("rpm_return_pump_main", 2400.0, "rpm"),
+    "return_pump_rpm_zero": ("rpm_return_pump_main", 0.0, "rpm"),
     "heater_power_present": ("power_heater_main", 250.0, "W"),
     "heater_power_zero": ("power_heater_main", 0.0, "W"),
+    "verify_temp_normal": ("tank_temp_verify", 78.1, "F"),
+    "verify_temp_disagreement": ("tank_temp_verify", 82.0, "F"),
+    "verify_sump_normal": ("sump_level_verify", 9.4, "in"),
+    "verify_sump_disagreement": ("sump_level_verify", 7.8, "in"),
 }
 
 
@@ -32,12 +40,26 @@ def main() -> None:
 
     sensor_key, value, unit = SCENARIOS[scenario]
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"physical-fault-{scenario}")
-    client.tls_set(ca_certs=MQTT_CA_CERT, certfile=MQTT_CLIENT_CERT, keyfile=MQTT_CLIENT_KEY, tls_version=ssl.PROTOCOL_TLS_CLIENT, cert_reqs=ssl.CERT_REQUIRED)
+    client.tls_set(
+        ca_certs=MQTT_CA_CERT,
+        certfile=MQTT_CLIENT_CERT,
+        keyfile=MQTT_CLIENT_KEY,
+        tls_version=ssl.PROTOCOL_TLS_CLIENT,
+        cert_reqs=ssl.CERT_REQUIRED,
+    )
     client.tls_insecure_set(False)
     client.connect(MQTT_HOST, MQTT_PORT, 60)
     client.loop_start()
     now = datetime.now(timezone.utc).isoformat()
-    payload = {"sensor_key": sensor_key, "source_node": MQTT_IDENTITY, "reading_time": now, "timestamp": now, "value": value, "unit": unit, "quality": "good"}
+    payload = {
+        "sensor_key": sensor_key,
+        "source_node": MQTT_IDENTITY,
+        "reading_time": now,
+        "timestamp": now,
+        "value": value,
+        "unit": unit,
+        "quality": "good",
+    }
     topic = f"battlereef/telemetry/{MQTT_IDENTITY}/{sensor_key}"
     info = client.publish(topic, json.dumps(payload), qos=1)
     info.wait_for_publish()

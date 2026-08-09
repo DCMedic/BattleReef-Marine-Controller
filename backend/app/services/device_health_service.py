@@ -53,9 +53,21 @@ class DeviceHealthService:
     def evaluate_device(self, device_key: str, now: datetime | None = None) -> dict[str, Any]:
         now = now or datetime.now(timezone.utc)
         window_start = now - timedelta(hours=24)
-        telemetry = self.db.query(TelemetryReading).filter(TelemetryReading.source_node == device_key).order_by(desc(TelemetryReading.reading_time)).limit(25).all()
+        telemetry = (
+            self.db.query(TelemetryReading)
+            .filter(TelemetryReading.source_node == device_key)
+            .order_by(desc(TelemetryReading.reading_time))
+            .limit(25)
+            .all()
+        )
         state = self.db.query(DeviceStateRecord).filter(DeviceStateRecord.device_key == device_key).first()
-        commands = self.db.query(CommandRecord).filter(CommandRecord.target_device == device_key, CommandRecord.requested_at >= window_start).order_by(desc(CommandRecord.requested_at)).limit(50).all()
+        commands = (
+            self.db.query(CommandRecord)
+            .filter(CommandRecord.target_device == device_key, CommandRecord.requested_at >= window_start)
+            .order_by(desc(CommandRecord.requested_at))
+            .limit(50)
+            .all()
+        )
 
         seen_times = [r.reading_time for r in telemetry]
         if state is not None:
@@ -85,7 +97,13 @@ class DeviceHealthService:
             score -= min(35.0, len(state_mismatches) * 20.0)
             reasons.append(f"ack_state_mismatches_24h:{len(state_mismatches)}")
 
-        latencies = [(c.acknowledged_at - c.last_dispatched_at).total_seconds() * 1000.0 for c in commands if c.acknowledged_at is not None and c.last_dispatched_at is not None and c.acknowledged_at >= c.last_dispatched_at]
+        latencies = [
+            (c.acknowledged_at - c.last_dispatched_at).total_seconds() * 1000.0
+            for c in commands
+            if c.acknowledged_at is not None
+            and c.last_dispatched_at is not None
+            and c.acknowledged_at >= c.last_dispatched_at
+        ]
         ack_latency_ms = mean(latencies) if latencies else None
         if ack_latency_ms is not None and ack_latency_ms > 5000:
             score -= 25.0
@@ -94,16 +112,23 @@ class DeviceHealthService:
             score -= 10.0
             reasons.append("ack_latency_over_2s")
 
-        physical_failures = [
-            item for item in runtime_alerts.list_active()
-            if item.get("source") == "physical_verification" and (item.get("metadata") or {}).get("device_key") == device_key
+        physical_alerts = [
+            item
+            for item in runtime_alerts.list_active()
+            if item.get("source") == "physical_verification"
+            and (item.get("metadata") or {}).get("device_key") == device_key
         ]
-        if physical_failures:
+        physical_critical = [item for item in physical_alerts if item.get("severity") == "critical"]
+        physical_warning = [item for item in physical_alerts if item.get("severity") != "critical"]
+        if physical_critical:
             score -= 60.0
-            reasons.append(f"independent_physical_verification_failures:{len(physical_failures)}")
+            reasons.append(f"independent_physical_critical_failures:{len(physical_critical)}")
+        if physical_warning:
+            score -= min(25.0, len(physical_warning) * 15.0)
+            reasons.append(f"independent_physical_degraded_checks:{len(physical_warning)}")
 
         score = max(0.0, min(100.0, round(score, 1)))
-        has_evidence = bool(telemetry or state or commands or physical_failures)
+        has_evidence = bool(telemetry or state or commands or physical_alerts)
         status = self.classify(score, has_evidence)
         return {
             "device_key": device_key,
@@ -119,7 +144,8 @@ class DeviceHealthService:
                 "commands_24h": len(commands),
                 "command_failures_24h": len(failures),
                 "ack_state_mismatches_24h": len(state_mismatches),
-                "independent_physical_failures": [item["key"] for item in physical_failures],
+                "independent_physical_critical_failures": [item["key"] for item in physical_critical],
+                "independent_physical_degraded_checks": [item["key"] for item in physical_warning],
                 "reasons": reasons,
             },
             "evaluated_at": now,
@@ -145,7 +171,20 @@ class DeviceHealthService:
             self.db.refresh(record)
             self._sync_alert(record)
             if previous_status != record.status:
-                AuditService(self.db).append(AuditEventCreate(event_type="health.device_status_changed", severity="critical" if record.status == "critical" else "warning" if record.status == "degraded" else "info", outcome=record.status, source="device_health", actor_type="system", actor_id="device_health_monitor", entity_type="device", entity_id=record.device_key, message=f"Device health changed from {previous_status or 'unobserved'} to {record.status}.", details={"score": record.score, "evidence": record.evidence}))
+                AuditService(self.db).append(
+                    AuditEventCreate(
+                        event_type="health.device_status_changed",
+                        severity="critical" if record.status == "critical" else "warning" if record.status == "degraded" else "info",
+                        outcome=record.status,
+                        source="device_health",
+                        actor_type="system",
+                        actor_id="device_health_monitor",
+                        entity_type="device",
+                        entity_id=record.device_key,
+                        message=f"Device health changed from {previous_status or 'unobserved'} to {record.status}.",
+                        details={"score": record.score, "evidence": record.evidence},
+                    )
+                )
             results.append(record)
         return results
 
@@ -153,7 +192,14 @@ class DeviceHealthService:
     def _sync_alert(record: DeviceHealthRecord) -> None:
         key = f"device_health_{record.device_key}"
         if record.status in {"degraded", "critical"}:
-            runtime_alerts.upsert(key=key, severity="critical" if record.status == "critical" else "warning", title="Device Health Degraded", message=f"{record.device_key} health is {record.status} ({record.score:.0f}/100).", source="device_health", metadata={"device_key": record.device_key, "score": record.score, "evidence": record.evidence})
+            runtime_alerts.upsert(
+                key=key,
+                severity="critical" if record.status == "critical" else "warning",
+                title="Device Health Degraded",
+                message=f"{record.device_key} health is {record.status} ({record.score:.0f}/100).",
+                source="device_health",
+                metadata={"device_key": record.device_key, "score": record.score, "evidence": record.evidence},
+            )
         else:
             runtime_alerts.clear(key)
 

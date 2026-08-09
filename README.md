@@ -14,7 +14,7 @@ The normal remote-control lifecycle is intentionally single-path:
 6. The command dispatcher publishes the queued command to the target device and marks it `dispatched`.
 7. The authenticated device executes the command and publishes an ACK containing its correlation ID and resulting state.
 8. The backend verifies device identity, command correlation, and reported state before marking the command completed.
-9. Independent physical evidence such as return flow or a dedicated heater power channel can then challenge the device's self-reported state.
+9. Independent physical evidence can then challenge the device's self-reported state.
 
 Publishing a command is not treated as successful actuation. An ACK proves what a device reports; independent physical verification provides a separate evidence layer for what the system appears to be doing physically.
 
@@ -34,7 +34,7 @@ Security, command, operator, device-health, telemetry-quarantine, and independen
 
 ## Telemetry plausibility and quarantine
 
-Before a new reading is trusted, BattleReef evaluates conservative physical bounds and selected rate-of-change/correlation rules. Current examples include temperature, pH, salinity, sump level, dissolved oxygen, ORP, flow, and power channels. Large salinity changes are additionally checked against recent sump-level movement from the same authenticated telemetry source.
+Before a new reading is trusted, BattleReef evaluates conservative physical bounds and selected rate-of-change/correlation rules. Current examples include temperature, pH, salinity, sump level, dissolved oxygen, ORP, flow, RPM, and dedicated power channels. Large salinity changes are additionally checked against recent sump-level movement from the same authenticated telemetry source.
 
 A failed plausibility check does not delete data. The reading is persisted as `quality=suspect`, a runtime alert is raised, and a durable audit event records the quarantine reason. Automation reads use only `quality=good` telemetry. Temperature automation also rejects trusted readings older than 120 seconds, preventing fallback to stale-but-valid data after a sensor begins producing implausible samples.
 
@@ -42,14 +42,29 @@ The safety watchdog follows the same trust model. Critical temperature/sump acti
 
 ## Independent physical-state verification
 
-A background verifier runs every 15 seconds and compares fresh device-reported state against fresh independent telemetry. Current rules include:
+A background verifier runs every 15 seconds and compares fresh device-reported state against fresh independent telemetry.
 
-- Return pump state vs. `flow_return_main`: a pump reporting ON with very low flow, or OFF while substantial return flow continues, is a critical contradiction.
-- Heater relay state vs. `power_heater_main`: a dedicated heater circuit power sensor can prove whether the heater is physically drawing power. Aggregate `power_monitor_main` is intentionally not used for this critical assertion because other loads could create false positives.
+Return-pump verification can use three separate physical domains: `power_return_pump_main` for electrical consumption, `flow_return_main` for hydraulic delivery, and optional `rpm_return_pump_main` for rotational evidence. A contradiction in any available channel is treated as a critical failure. When only one independent signal is installed and agrees, the verifier reports degraded rather than falsely claiming strong multi-signal verification.
 
-Independent evidence older than 120 seconds is not used to verify state; the result becomes `unknown`. A critical contradiction raises a runtime alert, creates a tamper-evident audit event, and imposes a large device-health penalty. Recovery clears the physical-verification alert and is also audited.
+Heater relay state is checked against `power_heater_main`, a dedicated isolated heater-circuit power measurement. Aggregate `power_monitor_main` is intentionally not used for this critical assertion because unrelated loads could create false positives.
+
+Critical sensor values can also be challenged by redundant channels. `tank_temp_verify` is compared with `tank_temp_main`, and `sump_level_verify` is compared with `sump_level_main`. Moderate disagreement produces a degraded warning; disagreement beyond twice the configured tolerance becomes critical.
+
+Independent evidence older than 120 seconds is not used to verify state; the result becomes `unknown`. Critical contradictions raise runtime alerts, create tamper-evident audit events, and impose a large device-health penalty. Degraded verification warnings receive a smaller health penalty. Recovery is audited.
 
 Engineers can manually invoke the verifier at `POST /api/v1/physical-verification/evaluate` in addition to the periodic background evaluation.
+
+## Independent verification hardware package
+
+The hardware contract is versioned under `hardware/`:
+
+- `hardware/verification-package-v1.json` is the machine-readable sensor/evidence manifest and threshold contract.
+- `hardware/README.md` describes architecture, isolation requirements, evidence topology, MQTT behavior, and maintenance expectations.
+- `hardware/commissioning-checklist-v1.md` is the acceptance checklist for bringing real verification hardware into service.
+
+Version 1 defines dedicated heater and return-pump power channels, return flow, optional pump RPM, a redundant tank-temperature probe, and a redundant sump-level channel. Backend tests verify that every sensor named in the hardware manifest exists in the sensor catalog and that manifest thresholds match runtime verification constants.
+
+Any interface connected to AC mains must be galvanically isolated, enclosed, appropriately listed/certified, and installed according to applicable electrical code and manufacturer instructions. BattleReef GPIO/ADC pins, exposed development boards, breadboards, and water-contact sensors must never be connected directly to mains potential.
 
 ## Device health monitoring
 
@@ -61,11 +76,14 @@ Health states are `healthy`, `degraded`, `critical`, and `unknown`. Degraded/cri
 
 `tools/simulator/device_fault_injector.py` exercises the real mTLS command/ACK path with `normal`, `drop_ack`, `delayed_ack`, `wrong_state`, and `explicit_failure` behaviors.
 
-`tools/simulator/physical_fault_injector.py` exercises the telemetry/plausibility/physical-verification path using development-only mTLS credentials. Scenarios include:
+`tools/simulator/physical_fault_injector.py` exercises telemetry plausibility and physical verification using development-only mTLS credentials. Scenarios include salinity spikes, zero/present return flow, return-pump power and RPM contradictions, heater power contradictions, and redundant temperature/sump disagreement.
+
+Examples:
 
 ```bash
 python tools/simulator/physical_fault_injector.py salinity_spike
-python tools/simulator/physical_fault_injector.py return_flow_zero
+python tools/simulator/physical_fault_injector.py return_pump_power_zero
+python tools/simulator/physical_fault_injector.py verify_temp_disagreement
 python tools/simulator/physical_fault_injector.py heater_power_present
 ```
 
@@ -75,7 +93,7 @@ The fault injectors are external development tools. No production HTTP endpoint 
 
 Telemetry values are numeric throughout the API/database (`value_double`) and timestamps are normalized to UTC. Leak probes use `0.0 = dry` and `1.0 = wet`. Unknown, suspect, or non-dry leak evidence is treated fail-safe.
 
-`power_heater_main` is reserved for an independent heater circuit power measurement. `power_monitor_main` remains aggregate system power and is not considered strong enough evidence by itself to declare a stuck heater relay.
+Dedicated verification channels must represent independently measured physical evidence rather than copied command values or actuator self-reports.
 
 ## Local development
 
@@ -115,7 +133,7 @@ Production deployments should use a dedicated BattleReef device CA or enterprise
 
 ## Continuous integration
 
-GitHub Actions validates pull requests to `main` with repository hygiene, backend regression tests, frontend build/security audit, Compose validation, and a live MQTT mTLS security integration gate. Plausibility boundaries, fail-safe leak semantics, and independent binary physical-signal verification are regression tested.
+GitHub Actions validates pull requests to `main` with repository hygiene, backend regression tests, frontend build/security audit, Compose validation, and a live MQTT mTLS security integration gate. Plausibility boundaries, fail-safe leak semantics, independent physical verification, and the hardware-manifest/runtime contract are regression tested.
 
 ## Safety principles
 
