@@ -15,6 +15,7 @@ bearer = HTTPBearer(auto_error=False)
 class Principal:
     username: str
     role: str
+    principal_type: str
 
 
 def current_principal(
@@ -29,10 +30,11 @@ def current_principal(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_or_expired_token") from exc
     username = claims.get("sub")
     role = claims.get("role")
+    principal_type = claims.get("principal_type")
     user = AuthService(db).get_user(str(username)) if username else None
-    if user is None or not user.active or user.role != role:
+    if user is None or not user.active or user.role != role or user.principal_type != principal_type:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="principal_inactive_or_changed")
-    return Principal(username=user.username, role=user.role)
+    return Principal(username=user.username, role=user.role, principal_type=user.principal_type)
 
 
 def require_role(required: str):
