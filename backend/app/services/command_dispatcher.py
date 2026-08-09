@@ -10,6 +10,8 @@ from app.core.runtime_alerts import runtime_alerts
 from app.db.session import SessionLocal
 from app.mqtt.security import configure_mqtt_security
 from app.mqtt.topics import device_command_topic
+from app.schemas.audit import AuditEventCreate
+from app.services.audit_service import AuditService
 from app.services.command_service import CommandService
 
 settings = get_settings()
@@ -33,6 +35,31 @@ def _build_message(record) -> dict:
     }
 
 
+def _audit(audit_service: AuditService, record, event_type: str, message: str, *, severity: str = "info", outcome: str = "success", details: dict | None = None) -> None:
+    audit_service.append(
+        AuditEventCreate(
+            event_type=event_type,
+            severity=severity,
+            outcome=outcome,
+            source="command_dispatcher",
+            actor_type="service",
+            actor_id="command_dispatcher",
+            entity_type="command",
+            entity_id=str(record.id),
+            correlation_id=record.correlation_id,
+            message=message,
+            details={
+                "target_device": record.target_device,
+                "command_type": record.command_type,
+                "delivery_policy": record.delivery_policy,
+                "dispatch_attempts": int(record.dispatch_attempts or 0),
+                "max_attempts": int(record.max_attempts or 0),
+                **(details or {}),
+            },
+        )
+    )
+
+
 def _connect_client() -> mqtt.Client:
     client = mqtt.Client(
         mqtt.CallbackAPIVersion.VERSION2,
@@ -52,13 +79,22 @@ def _connect_client() -> mqtt.Client:
             time.sleep(5)
 
 
-def _handle_expired_commands(command_service: CommandService) -> None:
+def _handle_expired_commands(command_service: CommandService, audit_service: AuditService) -> None:
     for record in command_service.list_expired_dispatched():
         attempts = int(record.dispatch_attempts or 0)
         reason = f"ack_timeout_after_attempt_{attempts}"
 
         if CommandService.retry_safe(record.delivery_policy) and attempts < int(record.max_attempts or 1):
             command_service.mark_retry_pending(record, reason)
+            _audit(
+                audit_service,
+                record,
+                "command.retry_scheduled",
+                f"Command {record.id} scheduled for retry after ACK timeout.",
+                severity="warning",
+                outcome="retry_pending",
+                details={"reason": reason},
+            )
             print(
                 f"[DISPATCH] RETRY_PENDING command_id={record.id} "
                 f"policy={record.delivery_policy} attempts={attempts}/{record.max_attempts}"
@@ -66,13 +102,22 @@ def _handle_expired_commands(command_service: CommandService) -> None:
             continue
 
         command_service.mark_timeout(record, reason)
+        severity = "critical" if record.delivery_policy == "safety_critical" else "warning"
+        _audit(
+            audit_service,
+            record,
+            "command.timeout",
+            f"Command {record.id} timed out without verified ACK.",
+            severity=severity,
+            outcome="timeout",
+            details={"reason": reason},
+        )
         print(
             f"[DISPATCH] TIMEOUT command_id={record.id} device={record.target_device} "
             f"policy={record.delivery_policy} attempts={attempts}/{record.max_attempts}"
         )
 
         alert_key = f"command_delivery_{record.id}"
-        severity = "critical" if record.delivery_policy == "safety_critical" else "warning"
         runtime_alerts.upsert(
             key=alert_key,
             severity=severity,
@@ -100,7 +145,8 @@ def _dispatch_once(client: mqtt.Client) -> None:
 
     try:
         command_service = CommandService(db)
-        _handle_expired_commands(command_service)
+        audit_service = AuditService(db)
+        _handle_expired_commands(command_service, audit_service)
         dispatchable = command_service.list_dispatchable(limit=20)
 
         for record in dispatchable:
@@ -113,6 +159,13 @@ def _dispatch_once(client: mqtt.Client) -> None:
                     raise RuntimeError(f"mqtt_publish_failed_rc_{result.rc}")
 
                 command_service.mark_dispatched(record)
+                _audit(
+                    audit_service,
+                    record,
+                    "command.dispatched",
+                    f"Command {record.id} published to authenticated MQTT device topic.",
+                    details={"topic": topic},
+                )
 
                 print(
                     f"[DISPATCH] SENT command_id={record.id} "
@@ -122,6 +175,15 @@ def _dispatch_once(client: mqtt.Client) -> None:
 
             except Exception as exc:
                 command_service.mark_failed(record, str(exc))
+                _audit(
+                    audit_service,
+                    record,
+                    "command.dispatch_failed",
+                    f"Command {record.id} failed during MQTT dispatch.",
+                    severity="warning",
+                    outcome="failed",
+                    details={"error": str(exc)},
+                )
                 print(
                     f"[DISPATCH] FAILED command_id={record.id} "
                     f"device={record.target_device} error={exc}"
