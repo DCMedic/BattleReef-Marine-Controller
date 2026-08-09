@@ -14,11 +14,12 @@ ROLE_LEVEL = {"viewer": 10, "operator": 20, "engineer": 30, "administrator": 40}
 DEV_JWT_SECRET = "development-only-change-me-development-only"
 DEV_BOOTSTRAP_PASSWORD = "ChangeThisAdminPassword123!"
 _password_hash = PasswordHash.recommended()
+_dummy_hash = _password_hash.hash("BattleReef-dummy-authentication-secret")
 settings = get_settings()
 
 
 class AuthService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session | None):
         self.db = db
 
     @staticmethod
@@ -42,12 +43,42 @@ class AuthService:
         return _password_hash.verify(password, password_hash)
 
     def get_user(self, username: str) -> UserRecord | None:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
         return self.db.scalar(select(UserRecord).where(UserRecord.username == username))
 
     def authenticate(self, username: str, password: str) -> UserRecord | None:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
         user = self.get_user(username)
-        if user is None or not user.active or not self.verify_password(password, user.password_hash):
+        now = datetime.now(timezone.utc)
+
+        if user is None:
+            self.verify_password(password, _dummy_hash)
             return None
+
+        if not user.active:
+            self.verify_password(password, user.password_hash)
+            return None
+
+        if user.locked_until is not None and user.locked_until > now:
+            self.verify_password(password, user.password_hash)
+            return None
+
+        if not self.verify_password(password, user.password_hash):
+            attempts = int(user.failed_login_attempts or 0) + 1
+            user.failed_login_attempts = attempts
+            if attempts >= max(1, int(settings.auth_max_failed_attempts)):
+                user.locked_until = now + timedelta(minutes=max(1, int(settings.auth_lockout_minutes)))
+                user.failed_login_attempts = 0
+            self.db.commit()
+            return None
+
+        if user.failed_login_attempts or user.locked_until is not None:
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            self.db.commit()
+            self.db.refresh(user)
         return user
 
     def issue_token(self, user: UserRecord) -> tuple[str, int]:
@@ -74,18 +105,33 @@ class AuthService:
         return ROLE_LEVEL.get(actual, -1) >= ROLE_LEVEL[required]
 
     def create_user(self, username: str, password: str, role: str, principal_type: str = "user") -> UserRecord:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
         if self.get_user(username) is not None:
             raise ValueError("username_already_exists")
-        record = UserRecord(username=username, password_hash=self.hash_password(password), role=role, principal_type=principal_type, token_version=1, active=True)
+        record = UserRecord(
+            username=username,
+            password_hash=self.hash_password(password),
+            role=role,
+            principal_type=principal_type,
+            token_version=1,
+            failed_login_attempts=0,
+            locked_until=None,
+            active=True,
+        )
         self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
         return record
 
     def list_users(self) -> list[UserRecord]:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
         return list(self.db.scalars(select(UserRecord).order_by(UserRecord.username.asc())).all())
 
     def update_user(self, username: str, *, role: str | None, active: bool | None, password: str | None) -> UserRecord | None:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
         user = self.get_user(username)
         if user is None:
             return None
@@ -99,6 +145,9 @@ class AuthService:
         if password is not None:
             user.password_hash = self.hash_password(password)
             security_state_changed = True
+        if password is not None or active is True:
+            user.failed_login_attempts = 0
+            user.locked_until = None
         if security_state_changed:
             user.token_version = int(user.token_version or 0) + 1
         self.db.commit()
