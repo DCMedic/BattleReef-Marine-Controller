@@ -24,10 +24,15 @@ class Settings(BaseSettings):
     mqtt_tls_client_cert: str = "/run/battlereef-mqtt/battlereef-backend.crt"
     mqtt_tls_client_key: str = "/run/battlereef-mqtt/battlereef-backend.key"
     mqtt_tls_check_hostname: bool = True
-    # Legacy username/password fields remain for migration compatibility only.
-    # When mTLS is enabled Mosquitto derives identity from the client certificate.
     mqtt_username: str = ""
     mqtt_password: str = ""
+
+    auth_jwt_secret: str = "development-only-change-me-development-only"
+    auth_token_issuer: str = "battlereef-controller"
+    auth_token_audience: str = "battlereef-api"
+    auth_token_ttl_minutes: int = 30
+    auth_bootstrap_admin_username: str = ""
+    auth_bootstrap_admin_password: str = ""
 
     api_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
