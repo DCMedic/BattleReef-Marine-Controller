@@ -3,12 +3,14 @@ from __future__ import annotations
 import threading
 import time
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.authz import require_role
 from app.api.routes import (
     alerts,
     audit,
+    auth,
     commands,
     devices,
     device_states,
@@ -25,6 +27,7 @@ from app.config import get_settings
 from app.core.api_self_test import run_api_self_test
 from app.db.schema import ensure_database_schema
 from app.db.session import SessionLocal
+from app.services.auth_service import AuthService
 from app.services.command_dispatcher import start_command_dispatcher
 from app.services.mqtt_listener import start_mqtt_listener
 from app.services.safety_watchdog import SafetyWatchdogService
@@ -46,11 +49,8 @@ def start_schedule_loop() -> None:
                 print(f"[SCHEDULE] Evaluation error: {exc}")
             finally:
                 db.close()
-
             time.sleep(30)
-
-    thread = threading.Thread(target=loop, name="schedule-engine", daemon=True)
-    thread.start()
+    threading.Thread(target=loop, name="schedule-engine", daemon=True).start()
 
 
 def start_safety_watchdog_loop() -> None:
@@ -66,21 +66,17 @@ def start_safety_watchdog_loop() -> None:
                 print(f"[WATCHDOG] Evaluation error: {exc}")
             finally:
                 db.close()
-
             time.sleep(15)
-
-    thread = threading.Thread(target=loop, name="safety-watchdog", daemon=True)
-    thread.start()
+    threading.Thread(target=loop, name="safety-watchdog", daemon=True).start()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
-        description="Backend API for BattleReef aquarium monitoring, automation, and device control.",
+        version="0.2.0",
+        description="Backend API for BattleReef aquarium monitoring, automation, device control, and audited RBAC.",
         debug=settings.app_debug,
     )
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -91,32 +87,36 @@ def create_app() -> FastAPI:
 
     @app.get("/", tags=["system"])
     def root() -> dict[str, str]:
-        return {
-            "name": settings.app_name,
-            "status": "online",
-        }
+        return {"name": settings.app_name, "status": "online"}
 
-    api_v1 = APIRouter(prefix=settings.api_prefix)
+    public_v1 = APIRouter(prefix=settings.api_prefix)
+    public_v1.include_router(health.router)
+    public_v1.include_router(auth.router)
+    app.include_router(public_v1)
 
-    api_v1.include_router(health.router)
-    api_v1.include_router(system.router)
-    api_v1.include_router(alerts.router)
-    api_v1.include_router(audit.router)
-    api_v1.include_router(commands.router)
-    api_v1.include_router(device_states.router)
-    api_v1.include_router(nodes.router)
-    api_v1.include_router(schedules.router)
-    api_v1.include_router(stream.router)
-    api_v1.include_router(tanks.router)
-    api_v1.include_router(telemetry.router)
-    api_v1.include_router(devices.router)
-    api_v1.include_router(thresholds.router)
-
-    app.include_router(api_v1)
+    protected_v1 = APIRouter(prefix=settings.api_prefix, dependencies=[Depends(require_role("viewer"))])
+    protected_v1.include_router(system.router)
+    protected_v1.include_router(alerts.router)
+    protected_v1.include_router(audit.router)
+    protected_v1.include_router(commands.router)
+    protected_v1.include_router(device_states.router)
+    protected_v1.include_router(nodes.router)
+    protected_v1.include_router(schedules.router)
+    protected_v1.include_router(stream.router)
+    protected_v1.include_router(tanks.router)
+    protected_v1.include_router(telemetry.router)
+    protected_v1.include_router(devices.router)
+    protected_v1.include_router(thresholds.router)
+    app.include_router(protected_v1)
 
     @app.on_event("startup")
     def run_startup_checks() -> None:
         ensure_database_schema()
+        db = SessionLocal()
+        try:
+            AuthService(db).ensure_bootstrap_admin()
+        finally:
+            db.close()
         run_api_self_test(app)
         start_mqtt_listener()
         start_schedule_loop()
