@@ -18,18 +18,20 @@ Publishing a command is not treated as successful actuation. Completion requires
 
 ## HTTP authentication and RBAC
 
-The operator API uses Argon2 password hashing and short-lived HS256 bearer tokens. Tokens are bound to username, role, principal type, issuer/audience, and a database token version. Changing a principal's password, role, or active state increments that version and invalidates previously issued tokens.
+The operator API uses Argon2 password hashing and short-lived HS256 bearer tokens. Tokens are bound to username, role, principal type, issuer/audience, and a database token version. Changing a principal's password, role, or active state increments that version and invalidates previously issued tokens. Browser tokens are stored only in `sessionStorage`, so closing the browser session removes them rather than leaving long-lived credentials in persistent local storage.
+
+Repeated bad credentials trigger a temporary database-backed account lockout. Unknown usernames still execute an Argon2 verification against a dummy hash to reduce username-enumeration timing differences.
 
 Health and login routes remain public. Operational API routes require authentication. The role hierarchy is:
 
 - `viewer`: read telemetry, system state, alerts, audit history, schedules, thresholds, and device status.
 - `operator`: viewer permissions plus routine queued commands, direct device commands, and alert clearing.
-- `engineer`: operator permissions plus schedule/threshold configuration and manual automation evaluation.
-- `administrator`: engineer permissions plus principal/account management.
+- `engineer`: operator permissions plus schedule/threshold configuration, device mode changes, and manual automation evaluation.
+- `administrator`: engineer permissions plus principal/account management and infrastructure-level maintenance operations.
 
-Accounts can be typed as `user` or `service`. The same RBAC and token-revocation controls apply to both. Administrator account management is available through `/api/v1/auth/users` and is itself administrator-only.
+Accounts can be typed as `user` or `service`. The same RBAC, lockout, auditing, and token-revocation controls apply to both. Administrator account management is available through `/api/v1/auth/users` and through the administrator-only Security panel in the operator console.
 
-The development `.env.example` contains bootstrap credentials solely to make a local stack usable. Replace both the bootstrap password and JWT secret before any non-local deployment. Outside development/test, BattleReef refuses to start with the known development JWT secret or without a usable bootstrap administrator configuration.
+The development `.env.example` contains bootstrap credentials solely to make a local stack usable. Replace both the bootstrap password and JWT secret before any non-local deployment. Outside development/test, BattleReef refuses to start with the known development JWT secret. Bootstrap administrator credentials are required only until an active administrator exists in the database; after first provisioning, the bootstrap password can and should be removed from the deployment environment.
 
 ## MQTT identity and authorization
 
@@ -68,7 +70,7 @@ docker compose up --build
 
 The PKI generator creates a local CA, broker certificate, and separate backend/simulator client certificates under `ops/mosquitto/certs/`. That directory is ignored by Git. Never commit private keys and never reuse the development CA for production deployments.
 
-The backend is available on port 8000. MQTT is exposed only on authenticated TLS port 8883. The operator console now presents a login screen and sends the bearer token on API requests.
+The backend is available on port 8000. MQTT is exposed only on authenticated TLS port 8883. The operator console presents a login screen, sends bearer credentials on API requests and the live event stream, and automatically returns to login when a session expires or is revoked.
 
 For backend-only development without starting MQTT, explicitly disable MQTT TLS in the test environment or provide the expected certificate files:
 
@@ -100,7 +102,7 @@ Production deployments should use a dedicated BattleReef device CA or an enterpr
 
 ## Continuous integration
 
-GitHub Actions validates every pull request to `main` with repository hygiene, backend tests, frontend build/security audit, Compose validation, and an MQTT security integration gate. Backend regression tests also validate password hashing, JWT identity claims, token-version binding, and RBAC role ordering.
+GitHub Actions validates every pull request to `main` with repository hygiene, backend tests, frontend build/security audit, Compose validation, and an MQTT security integration gate. Backend regression tests also validate password hashing, JWT identity claims, token-version binding, RBAC role ordering, brute-force lockout behavior, and authorization denial semantics.
 
 ## Safety principles
 
