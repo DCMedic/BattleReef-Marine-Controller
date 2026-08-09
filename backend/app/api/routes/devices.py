@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.orm import Session
 
+from app.api.authz import Principal, require_role
 from app.bootstrap_devices import get_services, get_system_status
-
+from app.db.session import get_db
+from app.schemas.audit import AuditEventCreate
+from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -52,116 +56,68 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
-@router.get(
-    "",
-    summary="List all registered direct-control devices",
-)
+@router.get("")
 def list_devices() -> list[dict[str, Any]]:
-    services = get_services()
-    return services.device_manager.inventory()
+    return get_services().device_manager.inventory()
 
 
-@router.get(
-    "/status",
-    summary="Get direct device-layer status",
-)
+@router.get("/status")
 def device_system_status() -> dict[str, Any]:
     return get_system_status()
 
 
-@router.get(
-    "/telemetry",
-    response_model=TelemetryResponse,
-    summary="Read current direct sensor telemetry",
-    responses={500: {"model": ErrorResponse}},
-)
+@router.get("/telemetry", response_model=TelemetryResponse)
 def get_telemetry() -> TelemetryResponse:
-    services = get_services()
     try:
-        data = services.sensor_service.read_all()
-        return TelemetryResponse(**data)
+        return TelemetryResponse(**get_services().sensor_service.read_all())
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to read telemetry: {exc}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Failed to read telemetry: {exc}") from exc
 
 
-@router.get(
-    "/{device_name}",
-    response_model=DeviceCommandResponse,
-    summary="Get a single direct-control device snapshot",
-    responses={404: {"model": ErrorResponse}},
-)
+@router.get("/{device_name}", response_model=DeviceCommandResponse)
 def get_device(device_name: str) -> DeviceCommandResponse:
-    services = get_services()
     try:
-        device = services.device_manager.get(device_name)
-        return DeviceCommandResponse(**device.snapshot())
+        return DeviceCommandResponse(**get_services().device_manager.get(device_name).snapshot())
     except KeyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post(
-    "/{device_name}/command",
-    response_model=DeviceCommandResponse,
-    summary="Send a command to a direct-control device",
-    responses={
-        400: {"model": ErrorResponse},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
-)
+@router.post("/{device_name}/command", response_model=DeviceCommandResponse)
 def command_device(
     device_name: str,
     payload: DeviceCommandRequest,
+    principal: Principal = Depends(require_role("operator")),
+    db: Session = Depends(get_db),
 ) -> DeviceCommandResponse:
-    services = get_services()
-
     try:
-        result = services.device_manager.command(
-            name=device_name,
-            action=payload.action,
-            value=payload.value,
-        )
+        result = get_services().device_manager.command(name=device_name, action=payload.action, value=payload.value)
+        AuditService(db).append(AuditEventCreate(
+            event_type="operator.direct_device_command", severity="warning", source="api.devices", actor_type="user",
+            actor_id=principal.username, entity_type="device", entity_id=device_name,
+            message=f"Direct device command {payload.action} executed for {device_name}.",
+            details={"role": principal.role, "action": payload.action, "value": payload.value, "result": result},
+        ))
         return DeviceCommandResponse(**result)
-
     except KeyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
-
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected device command failure: {exc}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Unexpected device command failure: {exc}") from exc
 
 
-@router.post(
-    "/heater/evaluate",
-    response_model=HeaterEvaluationResponse,
-    summary="Evaluate heater automation against current telemetry",
-    responses={500: {"model": ErrorResponse}},
-)
-def evaluate_heater() -> HeaterEvaluationResponse:
-    services = get_services()
-
+@router.post("/heater/evaluate", response_model=HeaterEvaluationResponse)
+def evaluate_heater(
+    principal: Principal = Depends(require_role("engineer")),
+    db: Session = Depends(get_db),
+) -> HeaterEvaluationResponse:
     try:
-        result = services.heater_controller.evaluate()
+        result = get_services().heater_controller.evaluate()
+        AuditService(db).append(AuditEventCreate(
+            event_type="operator.direct_heater_evaluation", source="api.devices", actor_type="user", actor_id=principal.username,
+            entity_type="device", entity_id="heater", message="Direct heater automation evaluation requested.",
+            details={"role": principal.role, "decision": result.get("decision")},
+        ))
         return HeaterEvaluationResponse(**result)
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Heater evaluation failed: {exc}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Heater evaluation failed: {exc}") from exc
