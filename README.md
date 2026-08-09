@@ -1,6 +1,6 @@
 # BattleReef Marine Controller
 
-BattleReef Marine Controller is a secure, event-driven cyber-physical platform for marine aquarium monitoring, automation, and device control. The current stack combines a FastAPI/SQLAlchemy backend, TimescaleDB/PostgreSQL telemetry storage, mutually authenticated MQTT transport, and a React/Vite operator interface.
+BattleReef Marine Controller is a secure, event-driven cyber-physical platform for marine aquarium monitoring, automation, and device control. The current stack combines a FastAPI/SQLAlchemy backend, TimescaleDB/PostgreSQL telemetry storage, mutually authenticated MQTT transport, an authenticated HTTP control plane, and a React/Vite operator interface.
 
 ## Control flow
 
@@ -16,6 +16,23 @@ The normal remote-control lifecycle is intentionally single-path:
 
 Publishing a command is not treated as successful actuation. Completion requires an authenticated, state-verifying device ACK.
 
+## HTTP authentication and RBAC
+
+The operator API uses Argon2 password hashing and short-lived HS256 bearer tokens. Tokens are bound to username, role, principal type, issuer/audience, and a database token version. Changing a principal's password, role, or active state increments that version and invalidates previously issued tokens. Browser tokens are stored only in `sessionStorage`, so closing the browser session removes them rather than leaving long-lived credentials in persistent local storage.
+
+Repeated bad credentials trigger a temporary database-backed account lockout. Unknown usernames still execute an Argon2 verification against a dummy hash to reduce username-enumeration timing differences.
+
+Health and login routes remain public. Operational API routes require authentication. The role hierarchy is:
+
+- `viewer`: read telemetry, system state, alerts, audit history, schedules, thresholds, and device status.
+- `operator`: viewer permissions plus routine queued commands, direct device commands, and alert clearing.
+- `engineer`: operator permissions plus schedule/threshold configuration, device mode changes, and manual automation evaluation.
+- `administrator`: engineer permissions plus principal/account management and infrastructure-level maintenance operations.
+
+Accounts can be typed as `user` or `service`. The same RBAC, lockout, auditing, and token-revocation controls apply to both. Administrator account management is available through `/api/v1/auth/users` and through the administrator-only Security panel in the operator console.
+
+The development `.env.example` contains bootstrap credentials solely to make a local stack usable. Replace both the bootstrap password and JWT secret before any non-local deployment. Outside development/test, BattleReef refuses to start with the known development JWT secret. Bootstrap administrator credentials are required only until an active administrator exists in the database; after first provisioning, the bootstrap password can and should be removed from the deployment environment.
+
 ## MQTT identity and authorization
 
 MQTT listens on TLS port `8883` and requires an X.509 client certificate. Mosquitto uses the client certificate common name (CN) as the MQTT username/identity. Anonymous MQTT access is disabled.
@@ -27,6 +44,10 @@ The backend certificate CN is `battlereef-backend` and is authorized to read tel
 - `battlereef/telemetry/<identity>/#` for sensor-node telemetry publishing
 
 The development `device-simulator` certificate is intentionally broader because one simulator emulates multiple virtual devices. Never deploy that aggregate identity to production hardware.
+
+## Audit trail
+
+Security, command, and operator events are persisted in PostgreSQL as an append-only, SHA-256 hash-chained audit journal. Historical audit events have read and integrity-verification APIs but no update/delete API. Authenticated human/service identities are used as audit actors for privileged HTTP actions.
 
 ## Telemetry contract
 
@@ -49,7 +70,7 @@ docker compose up --build
 
 The PKI generator creates a local CA, broker certificate, and separate backend/simulator client certificates under `ops/mosquitto/certs/`. That directory is ignored by Git. Never commit private keys and never reuse the development CA for production deployments.
 
-The backend is available on port 8000. MQTT is exposed only on authenticated TLS port 8883.
+The backend is available on port 8000. MQTT is exposed only on authenticated TLS port 8883. The operator console presents a login screen, sends bearer credentials on API requests and the live event stream, and automatically returns to login when a session expires or is revoked.
 
 For backend-only development without starting MQTT, explicitly disable MQTT TLS in the test environment or provide the expected certificate files:
 
@@ -81,8 +102,8 @@ Production deployments should use a dedicated BattleReef device CA or an enterpr
 
 ## Continuous integration
 
-GitHub Actions validates every pull request to `main` with repository hygiene, backend tests, frontend build/security audit, Compose validation, and an MQTT security integration gate. The MQTT gate generates ephemeral development certificates, starts Mosquitto, proves a valid backend certificate can connect, and proves a client without a certificate is rejected.
+GitHub Actions validates every pull request to `main` with repository hygiene, backend tests, frontend build/security audit, Compose validation, and an MQTT security integration gate. Backend regression tests also validate password hashing, JWT identity claims, token-version binding, RBAC role ordering, brute-force lockout behavior, and authorization denial semantics.
 
 ## Safety principles
 
-BattleReef treats automation as a cyber-physical safety system. Safety-critical commands use explicit delivery policies, repetitive automation commands are deduplicated, background safety/schedule loops recover from transient errors, remote commands require authenticated ACKs, and device-reported state must match the requested physical state before completion.
+BattleReef treats automation as a cyber-physical safety system. Safety-critical commands use explicit delivery policies, repetitive automation commands are deduplicated, background safety/schedule loops recover from transient errors, remote commands require authenticated ACKs, device-reported state must match the requested physical state before completion, and privileged HTTP actions require an authenticated principal with the appropriate role.
