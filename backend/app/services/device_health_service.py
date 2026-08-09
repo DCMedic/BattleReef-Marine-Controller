@@ -45,9 +45,9 @@ class DeviceHealthService:
         return 0.0, None
 
     def _keys(self) -> list[str]:
-        keys = set(self.db.query(TelemetryReading.source_node).distinct().scalars().all())
-        keys.update(self.db.query(DeviceStateRecord.device_key).distinct().scalars().all())
-        keys.update(self.db.query(CommandRecord.target_device).distinct().scalars().all())
+        keys = {row[0] for row in self.db.query(TelemetryReading.source_node).distinct().all()}
+        keys.update(row[0] for row in self.db.query(DeviceStateRecord.device_key).distinct().all())
+        keys.update(row[0] for row in self.db.query(CommandRecord.target_device).distinct().all())
         return sorted(k for k in keys if k)
 
     def evaluate_device(self, device_key: str, now: datetime | None = None) -> dict[str, Any]:
@@ -86,8 +86,7 @@ class DeviceHealthService:
 
         bad_quality = sum(1 for r in telemetry if str(r.quality).lower() != "good")
         if bad_quality:
-            quality_penalty = min(30.0, bad_quality * 6.0)
-            score -= quality_penalty
+            score -= min(30.0, bad_quality * 6.0)
             reasons.append(f"telemetry_quality_non_good:{bad_quality}")
 
         failures = [c for c in commands if c.status in {"failed", "timeout"}]
@@ -185,4 +184,4 @@ class DeviceHealthService:
             runtime_alerts.clear(key)
 
     def list_health(self) -> list[DeviceHealthRecord]:
-        return self.db.query(DeviceHealthRecord).order_by(DeviceHealthRecord.status.asc(), DeviceHealthRecord.score.asc()).all()
+        return self.db.query(DeviceHealthRecord).order_by(DeviceHealthRecord.score.asc()).all()
