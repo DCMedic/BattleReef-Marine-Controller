@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import desc
@@ -17,7 +16,7 @@ class PhysicalVerificationService:
     """Cross-check device-reported state against independent physical evidence."""
 
     RETURN_FLOW_ON_MIN_GPH = 150.0
-    HEATER_STUCK_POWER_DELTA_W = 75.0
+    HEATER_POWER_ON_MIN_W = 10.0
 
     def __init__(self, db: Session):
         self.db = db
@@ -40,6 +39,17 @@ class PhysicalVerificationService:
         value = state.state_payload.get("power")
         return value if isinstance(value, bool) else None
 
+    @classmethod
+    def verify_binary_with_signal(cls, reported_on: bool | None, signal_value: float | None, on_threshold: float) -> tuple[str, str]:
+        if reported_on is None or signal_value is None:
+            return "unknown", "missing_independent_evidence"
+        physically_on = signal_value >= on_threshold
+        if reported_on and not physically_on:
+            return "critical", "device_reports_on_but_independent_signal_is_off"
+        if not reported_on and physically_on:
+            return "critical", "device_reports_off_but_independent_signal_is_on"
+        return "verified", "reported_state_matches_independent_signal"
+
     def evaluate(self) -> list[dict[str, Any]]:
         results = [self._verify_return_pump(), self._verify_heater_power_signature()]
         for result in results:
@@ -50,41 +60,23 @@ class PhysicalVerificationService:
         state = self._device_state("return_pump_main") or self._device_state("pump_return_main")
         flow = self._latest_sensor("flow_return_main")
         reported_on = self._power(state)
-        if reported_on is None or flow is None:
-            return {"key": "return_pump_flow", "status": "unknown", "reason": "missing_state_or_flow_evidence"}
-        flow_gph = float(flow.value_double)
-        if reported_on and flow_gph < self.RETURN_FLOW_ON_MIN_GPH:
-            return {"key": "return_pump_flow", "status": "critical", "reason": "pump_reports_on_but_flow_is_low", "flow_gph": flow_gph}
-        if not reported_on and flow_gph >= self.RETURN_FLOW_ON_MIN_GPH:
-            return {"key": "return_pump_flow", "status": "critical", "reason": "pump_reports_off_but_flow_continues", "flow_gph": flow_gph}
-        return {"key": "return_pump_flow", "status": "verified", "reason": "reported_state_matches_flow", "flow_gph": flow_gph}
+        flow_gph = float(flow.value_double) if flow is not None else None
+        status, reason = self.verify_binary_with_signal(reported_on, flow_gph, self.RETURN_FLOW_ON_MIN_GPH)
+        return {"key": "return_pump_flow", "status": status, "reason": reason, "flow_gph": flow_gph, "reported_power": reported_on}
 
     def _verify_heater_power_signature(self) -> dict[str, Any]:
         state = self._device_state("heater_main")
-        power = self._latest_sensor("power_monitor_main")
+        heater_power = self._latest_sensor("power_heater_main")
         reported_on = self._power(state)
-        if reported_on is None or power is None:
-            return {"key": "heater_power_signature", "status": "unknown", "reason": "missing_state_or_power_evidence"}
-
-        # Compare current power with recent good baseline samples while the heater was reported off.
-        recent = (
-            self.db.query(TelemetryReading)
-            .filter(TelemetryReading.sensor_key == "power_monitor_main", TelemetryReading.quality == "good")
-            .order_by(desc(TelemetryReading.reading_time))
-            .limit(20)
-            .all()
-        )
-        current_w = float(power.value_double)
-        if len(recent) < 4:
-            return {"key": "heater_power_signature", "status": "unknown", "reason": "insufficient_power_baseline", "power_w": current_w}
-        baseline = min(float(r.value_double) for r in recent)
-        delta = current_w - baseline
-        if reported_on is False and delta >= self.HEATER_STUCK_POWER_DELTA_W:
-            return {"key": "heater_power_signature", "status": "critical", "reason": "heater_reports_off_but_power_signature_present", "power_w": current_w, "baseline_w": baseline, "delta_w": round(delta, 1)}
-        return {"key": "heater_power_signature", "status": "verified", "reason": "heater_state_not_contradicted_by_power", "power_w": current_w, "baseline_w": baseline, "delta_w": round(delta, 1)}
+        power_w = float(heater_power.value_double) if heater_power is not None else None
+        status, reason = self.verify_binary_with_signal(reported_on, power_w, self.HEATER_POWER_ON_MIN_W)
+        return {"key": "heater_power_signature", "status": status, "reason": reason, "power_w": power_w, "reported_power": reported_on}
 
     def _sync_result(self, result: dict[str, Any]) -> None:
         alert_key = f"physical_verification_{result['key']}"
+        active_keys = {item["key"] for item in runtime_alerts.list_active()}
+        was_active = alert_key in active_keys
+
         if result["status"] == "critical":
             runtime_alerts.upsert(
                 key=alert_key,
@@ -94,17 +86,30 @@ class PhysicalVerificationService:
                 source="physical_verification",
                 metadata=result,
             )
-            AuditService(self.db).append(AuditEventCreate(
-                event_type="safety.physical_verification_failed",
-                severity="critical",
-                outcome="failed",
-                source="physical_verification",
-                actor_type="system",
-                actor_id="physical_verification_monitor",
-                entity_type="verification_rule",
-                entity_id=result["key"],
-                message=f"Independent physical verification failed: {result['reason']}.",
-                details=result,
-            ))
+            if not was_active:
+                AuditService(self.db).append(AuditEventCreate(
+                    event_type="safety.physical_verification_failed",
+                    severity="critical",
+                    outcome="failed",
+                    source="physical_verification",
+                    actor_type="system",
+                    actor_id="physical_verification_monitor",
+                    entity_type="verification_rule",
+                    entity_id=result["key"],
+                    message=f"Independent physical verification failed: {result['reason']}.",
+                    details=result,
+                ))
         elif result["status"] == "verified":
-            runtime_alerts.clear(alert_key)
+            if runtime_alerts.clear(alert_key) and was_active:
+                AuditService(self.db).append(AuditEventCreate(
+                    event_type="safety.physical_verification_recovered",
+                    severity="info",
+                    outcome="verified",
+                    source="physical_verification",
+                    actor_type="system",
+                    actor_id="physical_verification_monitor",
+                    entity_type="verification_rule",
+                    entity_id=result["key"],
+                    message="Independent physical verification recovered.",
+                    details=result,
+                ))
