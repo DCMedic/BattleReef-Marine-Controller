@@ -8,8 +8,12 @@ from typing import Any
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session
 
+from app.core.runtime_alerts import runtime_alerts
 from app.db.models.telemetry import TelemetryRecord
+from app.schemas.audit import AuditEventCreate
 from app.schemas.telemetry import TelemetryIngestRequest
+from app.services.audit_service import AuditService
+from app.services.telemetry_plausibility_service import TelemetryPlausibilityService
 
 
 def _parse_timestamp(value: str | datetime) -> datetime:
@@ -36,6 +40,13 @@ class TelemetryService:
 
     def ingest(self, payload: TelemetryIngestRequest) -> TelemetryRecord:
         parsed_time = _parse_timestamp(payload.timestamp)
+        plausibility = TelemetryPlausibilityService(self.db).evaluate(
+            sensor_key=payload.sensor_key,
+            value=float(payload.value),
+            source_node=payload.source_node,
+            reading_time=parsed_time,
+        )
+        effective_quality = payload.quality if payload.quality.lower() != "good" else plausibility["quality"]
 
         record = self.model(
             sensor_key=payload.sensor_key,
@@ -43,7 +54,7 @@ class TelemetryService:
             reading_time=parsed_time,
             value_double=float(payload.value),
             unit=payload.unit,
-            quality=payload.quality,
+            quality=effective_quality,
         )
 
         try:
@@ -54,33 +65,45 @@ class TelemetryService:
             self.db.rollback()
             raise
 
+        alert_key = f"telemetry_plausibility_{payload.source_node}_{payload.sensor_key}"
+        if not plausibility["plausible"]:
+            runtime_alerts.upsert(
+                key=alert_key,
+                severity="warning",
+                title="Telemetry Quarantined",
+                message=f"{payload.sensor_key} produced an implausible reading; automation will not trust it.",
+                source="telemetry_plausibility",
+                metadata={"sensor_key": payload.sensor_key, "source_node": payload.source_node, "value": float(payload.value), "reasons": plausibility["reasons"]},
+            )
+            AuditService(self.db).append(AuditEventCreate(
+                event_type="telemetry.reading_quarantined",
+                severity="warning",
+                outcome="quarantined",
+                source="telemetry_plausibility",
+                actor_type="mqtt_identity",
+                actor_id=payload.source_node,
+                entity_type="sensor",
+                entity_id=payload.sensor_key,
+                message=f"Telemetry reading from {payload.sensor_key} was stored as suspect and excluded from trusted automation.",
+                details={"value": float(payload.value), "unit": payload.unit, "reasons": plausibility["reasons"]},
+            ))
+        else:
+            runtime_alerts.clear(alert_key)
+
         return record
 
     def latest(self, limit: int = 100) -> list[TelemetryRecord]:
-        return (
-            self.db.query(self.model)
-            .order_by(desc(self.model.reading_time))
-            .limit(limit)
-            .all()
-        )
+        return self.db.query(self.model).order_by(desc(self.model.reading_time)).limit(limit).all()
 
-    def latest_by_sensor(self, sensor_key: str, limit: int = 1) -> list[TelemetryRecord]:
-        return (
-            self.db.query(self.model)
-            .filter(self.model.sensor_key == sensor_key)
-            .order_by(desc(self.model.reading_time))
-            .limit(limit)
-            .all()
-        )
+    def latest_by_sensor(self, sensor_key: str, limit: int = 1, trusted_only: bool = False) -> list[TelemetryRecord]:
+        query = self.db.query(self.model).filter(self.model.sensor_key == sensor_key)
+        if trusted_only:
+            query = query.filter(self.model.quality == "good")
+        return query.order_by(desc(self.model.reading_time)).limit(limit).all()
 
-    def history_for_sensors(
-        self,
-        sensor_keys: list[str],
-        limit: int = 120,
-    ) -> dict[str, list[dict[str, Any]]]:
+    def history_for_sensors(self, sensor_keys: list[str], limit: int = 120) -> dict[str, list[dict[str, Any]]]:
         if not sensor_keys:
             return {}
-
         records = (
             self.db.query(self.model)
             .filter(self.model.sensor_key.in_(sensor_keys))
@@ -88,40 +111,14 @@ class TelemetryService:
             .limit(max(limit * len(sensor_keys), limit))
             .all()
         )
-
         grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-
         for record in records:
-            grouped[record.sensor_key].append(
-                {
-                    "timestamp": record.reading_time.isoformat(),
-                    "value": _record_numeric_value(record),
-                    "unit": record.unit,
-                    "quality": record.quality,
-                }
-            )
+            grouped[record.sensor_key].append({"timestamp": record.reading_time.isoformat(), "value": _record_numeric_value(record), "unit": record.unit, "quality": record.quality})
+        return {sensor_key: list(reversed(grouped.get(sensor_key, [])[:limit])) for sensor_key in sensor_keys}
 
-        final: dict[str, list[dict[str, Any]]] = {}
-
-        for sensor_key in sensor_keys:
-            points = list(reversed(grouped.get(sensor_key, [])[:limit]))
-            final[sensor_key] = points
-
-        return final
-
-    def window_for_sensor(
-        self,
-        *,
-        sensor_key: str,
-        days: int = 3,
-        max_points: int = 288,
-        end_time: datetime | None = None,
-    ) -> dict[str, Any]:
-        if end_time is None:
-            end_time = datetime.now(timezone.utc)
-
+    def window_for_sensor(self, *, sensor_key: str, days: int = 3, max_points: int = 288, end_time: datetime | None = None) -> dict[str, Any]:
+        end_time = end_time or datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=days)
-
         records = (
             self.db.query(self.model)
             .filter(self.model.sensor_key == sensor_key)
@@ -130,73 +127,25 @@ class TelemetryService:
             .order_by(asc(self.model.reading_time))
             .all()
         )
-
         if not records:
-            return {
-                "sensor_key": sensor_key,
-                "unit": None,
-                "days": days,
-                "max_points": max_points,
-                "points": [],
-                "latest_value": None,
-                "latest_timestamp": None,
-                "min_value": None,
-                "max_value": None,
-            }
-
+            return {"sensor_key": sensor_key, "unit": None, "days": days, "max_points": max_points, "points": [], "latest_value": None, "latest_timestamp": None, "min_value": None, "max_value": None}
         unit = records[-1].unit
-
-        normalized_points = [
-            {
-                "timestamp": record.reading_time.isoformat(),
-                "value": _record_numeric_value(record),
-            }
-            for record in records
-        ]
-
+        normalized_points = [{"timestamp": record.reading_time.isoformat(), "value": _record_numeric_value(record)} for record in records]
         reduced_points = self._downsample_points(normalized_points, max_points=max_points)
         values = [float(point["value"]) for point in reduced_points]
+        return {"sensor_key": sensor_key, "unit": unit, "days": days, "max_points": max_points, "points": reduced_points, "latest_value": reduced_points[-1]["value"], "latest_timestamp": reduced_points[-1]["timestamp"], "min_value": min(values), "max_value": max(values)}
 
-        return {
-            "sensor_key": sensor_key,
-            "unit": unit,
-            "days": days,
-            "max_points": max_points,
-            "points": reduced_points,
-            "latest_value": reduced_points[-1]["value"],
-            "latest_timestamp": reduced_points[-1]["timestamp"],
-            "min_value": min(values),
-            "max_value": max(values),
-        }
-
-    def _downsample_points(
-        self,
-        points: list[dict[str, Any]],
-        *,
-        max_points: int,
-    ) -> list[dict[str, Any]]:
+    def _downsample_points(self, points: list[dict[str, Any]], *, max_points: int) -> list[dict[str, Any]]:
         if len(points) <= max_points:
             return points
-
         bucket_size = len(points) / max_points
         reduced: list[dict[str, Any]] = []
-
         for bucket_index in range(max_points):
             start = int(math.floor(bucket_index * bucket_size))
             end = int(math.floor((bucket_index + 1) * bucket_size))
             bucket = points[start:end] if end > start else [points[start]]
-
             if not bucket:
                 continue
-
             avg_value = sum(float(item["value"]) for item in bucket) / len(bucket)
-            timestamp = bucket[-1]["timestamp"]
-
-            reduced.append(
-                {
-                    "timestamp": timestamp,
-                    "value": round(avg_value, 3),
-                }
-            )
-
+            reduced.append({"timestamp": bucket[-1]["timestamp"], "value": round(avg_value, 3)})
         return reduced
