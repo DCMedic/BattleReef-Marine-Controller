@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.schemas.audit import AuditEventCreate
 from app.schemas.command import CommandCreateRequest, CommandListResponse, CommandResponse
+from app.services.audit_service import AuditService
 from app.services.command_service import CommandService
 from app.services.rule_engine import RuleEngineService
 from app.services.schedule_engine import ScheduleEngine
@@ -37,8 +39,7 @@ def list_commands(
     limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    service = CommandService(db)
-    records = service.list_recent(limit=limit)
+    records = CommandService(db).list_recent(limit=limit)
     return CommandListResponse(items=[_command_response(record) for record in records])
 
 
@@ -47,8 +48,24 @@ def create_command(
     payload: CommandCreateRequest,
     db: Session = Depends(get_db),
 ):
-    service = CommandService(db)
-    record = service.create_command(payload)
+    record = CommandService(db).create_command(payload)
+    AuditService(db).append(
+        AuditEventCreate(
+            event_type="operator.command_created",
+            source="api.commands",
+            actor_type="operator",
+            actor_id=payload.requested_by or "api_client",
+            entity_type="command",
+            entity_id=str(record.id),
+            correlation_id=record.correlation_id,
+            message=f"Command {record.id} created for {record.target_device}.",
+            details={
+                "target_device": record.target_device,
+                "command_type": record.command_type,
+                "delivery_policy": record.delivery_policy,
+            },
+        )
+    )
     return _command_response(record)
 
 
@@ -56,13 +73,11 @@ def create_command(
 def evaluate_temperature_rule(
     db: Session = Depends(get_db),
 ):
-    service = RuleEngineService(db)
-    return service.evaluate_temperature_rule()
+    return RuleEngineService(db).evaluate_temperature_rule()
 
 
 @router.post("/evaluate/schedule")
 def evaluate_schedule_rules(
     db: Session = Depends(get_db),
 ):
-    engine = ScheduleEngine(db)
-    return engine.evaluate()
+    return ScheduleEngine(db).evaluate()
