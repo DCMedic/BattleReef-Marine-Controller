@@ -35,7 +35,7 @@ def clear_alert(
     if not runtime_alerts.clear(alert_key):
         raise HTTPException(status_code=404, detail="Alert not found")
     AuditService(db).append(AuditEventCreate(
-        event_type="operator.alert_cleared", source="api.alerts", actor_type="user", actor_id=principal.username,
+        event_type="operator.alert_cleared", source="api.alerts", actor_type=principal.principal_type, actor_id=principal.username,
         entity_type="runtime_alert", entity_id=alert_key, message=f"Active alert {alert_key} was manually cleared.",
         details={"role": principal.role, "alert": active or {}},
     ))
@@ -52,7 +52,7 @@ def clear_all_alerts(
         runtime_alerts.clear(item["key"])
     AuditService(db).append(AuditEventCreate(
         event_type="operator.alerts_cleared_all", severity="warning" if items else "info", source="api.alerts",
-        actor_type="user", actor_id=principal.username, entity_type="runtime_alert_collection",
+        actor_type=principal.principal_type, actor_id=principal.username, entity_type="runtime_alert_collection",
         message=f"Operator cleared {len(items)} active alert(s).",
         details={"role": principal.role, "cleared_keys": [item["key"] for item in items]},
     ))
