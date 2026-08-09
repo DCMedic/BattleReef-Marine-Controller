@@ -1,28 +1,35 @@
 import { useEffect, useState } from "react";
 
 import App from "./App";
-import { clearSession, fetchCurrentPrincipal, getAccessToken, getStoredPrincipal, type AuthPrincipal } from "./api/client";
+import { AUTH_CLEARED_EVENT, clearSession, fetchCurrentPrincipal, getAccessToken, getStoredPrincipal, type AuthPrincipal } from "./api/client";
 import SecurityPanel from "./components/SecurityPanel";
 import LoginPage from "./pages/LoginPage";
 
 export default function AuthGate() {
-  const [principal, setPrincipal] = useState<AuthPrincipal | null>(() => getStoredPrincipal());
-  const [checking, setChecking] = useState(Boolean(getAccessToken()));
+  const tokenAtLoad = getAccessToken();
+  const [principal, setPrincipal] = useState<AuthPrincipal | null>(() => tokenAtLoad ? getStoredPrincipal() : null);
+  const [checking, setChecking] = useState(Boolean(tokenAtLoad));
   const [showSecurity, setShowSecurity] = useState(false);
 
   useEffect(() => {
+    const onCleared = () => {
+      setPrincipal(null);
+      setShowSecurity(false);
+      setChecking(false);
+    };
+    window.addEventListener(AUTH_CLEARED_EVENT, onCleared);
+
     if (!getAccessToken()) {
       setChecking(false);
       setPrincipal(null);
-      return;
+    } else {
+      void fetchCurrentPrincipal()
+        .then((verified) => setPrincipal(verified))
+        .catch(() => clearSession())
+        .finally(() => setChecking(false));
     }
-    void fetchCurrentPrincipal()
-      .then((verified) => setPrincipal(verified))
-      .catch(() => {
-        clearSession();
-        setPrincipal(null);
-      })
-      .finally(() => setChecking(false));
+
+    return () => window.removeEventListener(AUTH_CLEARED_EVENT, onCleared);
   }, []);
 
   if (checking) {
@@ -47,7 +54,7 @@ export default function AuthGate() {
         ) : null}
         <button
           type="button"
-          onClick={() => { clearSession(); setPrincipal(null); setShowSecurity(false); }}
+          onClick={() => clearSession()}
           style={{ marginLeft: 10, border: "1px solid #d0d7de", borderRadius: 6, background: "#f6f8fa", padding: "4px 7px", cursor: "pointer" }}
         >
           Sign out
