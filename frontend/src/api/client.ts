@@ -2,8 +2,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 const TOKEN_KEY = "battlereef.access_token";
 const PRINCIPAL_KEY = "battlereef.principal";
 
-export type AuthPrincipal = { username: string; role: string };
+export type AuthPrincipal = { username: string; role: string; principal_type: string };
 export type LoginResponse = AuthPrincipal & { access_token: string; token_type: string; expires_in: number };
+
+const ROLE_LEVEL: Record<string, number> = { viewer: 10, operator: 20, engineer: 30, administrator: 40 };
+export function roleAllows(actual: string, required: string): boolean {
+  return (ROLE_LEVEL[actual] ?? -1) >= (ROLE_LEVEL[required] ?? Number.MAX_SAFE_INTEGER);
+}
 
 export function getAccessToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -17,7 +22,7 @@ export function getStoredPrincipal(): AuthPrincipal | null {
 
 export function storeSession(session: LoginResponse): void {
   window.localStorage.setItem(TOKEN_KEY, session.access_token);
-  window.localStorage.setItem(PRINCIPAL_KEY, JSON.stringify({ username: session.username, role: session.role }));
+  window.localStorage.setItem(PRINCIPAL_KEY, JSON.stringify({ username: session.username, role: session.role, principal_type: session.principal_type }));
 }
 
 export function clearSession(): void {
