@@ -45,7 +45,11 @@ class TelemetryPlausibilityService:
 
         previous = (
             self.db.query(TelemetryReading)
-            .filter(TelemetryReading.sensor_key == sensor_key, TelemetryReading.source_node == source_node)
+            .filter(
+                TelemetryReading.sensor_key == sensor_key,
+                TelemetryReading.source_node == source_node,
+                TelemetryReading.quality == "good",
+            )
             .order_by(desc(TelemetryReading.reading_time))
             .first()
         )
