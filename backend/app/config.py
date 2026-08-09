@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     auth_token_issuer: str = "battlereef-controller"
     auth_token_audience: str = "battlereef-api"
     auth_token_ttl_minutes: int = 30
+    auth_max_failed_attempts: int = 5
+    auth_lockout_minutes: int = 15
     auth_bootstrap_admin_username: str = ""
     auth_bootstrap_admin_password: str = ""
 
