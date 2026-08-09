@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import desc
@@ -20,6 +20,7 @@ class TelemetryPlausibilityService:
         "flow_return_main": (0.0, 2000.0),
         "flow_manifold_main": (0.0, 1000.0),
         "power_monitor_main": (0.0, 2500.0),
+        "power_heater_main": (0.0, 1000.0),
         "dissolved_oxygen_main": (0.0, 20.0),
         "orp_main": (-500.0, 1000.0),
     }
@@ -54,12 +55,16 @@ class TelemetryPlausibilityService:
             if age <= 300 and abs(value - float(previous.value_double)) > max_step:
                 reasons.append(f"implausible_step_change:{round(abs(value - float(previous.value_double)), 4)}")
 
-        # Correlation guard: a dramatic salinity move without a recent sump-level move is suspicious.
         if sensor_key == "tank_salinity_main" and previous is not None and abs(value - float(previous.value_double)) >= 1.0:
             cutoff = reading_time - timedelta(minutes=5)
             sump = (
                 self.db.query(TelemetryReading)
-                .filter(TelemetryReading.sensor_key == "sump_level_main", TelemetryReading.reading_time >= cutoff)
+                .filter(
+                    TelemetryReading.sensor_key == "sump_level_main",
+                    TelemetryReading.source_node == source_node,
+                    TelemetryReading.reading_time >= cutoff,
+                    TelemetryReading.quality == "good",
+                )
                 .order_by(desc(TelemetryReading.reading_time))
                 .limit(2)
                 .all()
@@ -67,8 +72,4 @@ class TelemetryPlausibilityService:
             if len(sump) >= 2 and abs(float(sump[0].value_double) - float(sump[-1].value_double)) < 0.25:
                 reasons.append("salinity_change_not_supported_by_sump_level")
 
-        return {
-            "plausible": not reasons,
-            "quality": "good" if not reasons else "suspect",
-            "reasons": reasons,
-        }
+        return {"plausible": not reasons, "quality": "good" if not reasons else "suspect", "reasons": reasons}
