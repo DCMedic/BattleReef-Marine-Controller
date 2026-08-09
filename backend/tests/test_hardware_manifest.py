@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.core.sensor_catalog import SENSOR_CATALOG
 from app.services.physical_verification_service import PhysicalVerificationService
 
@@ -36,15 +38,15 @@ def test_verification_manifest_thresholds_match_runtime_contract() -> None:
 def test_sensor_pair_verification_has_degraded_and_critical_bands() -> None:
     status, _, delta = PhysicalVerificationService.verify_sensor_pair(78.0, 78.8, 1.5)
     assert status == "verified"
-    assert delta == 0.8
+    assert delta == pytest.approx(0.8)
 
     status, _, delta = PhysicalVerificationService.verify_sensor_pair(78.0, 80.0, 1.5)
     assert status == "degraded"
-    assert delta == 2.0
+    assert delta == pytest.approx(2.0)
 
     status, _, delta = PhysicalVerificationService.verify_sensor_pair(78.0, 82.0, 1.5)
     assert status == "critical"
-    assert delta == 4.0
+    assert delta == pytest.approx(4.0)
 
 
 def test_missing_redundant_evidence_is_unknown_not_verified() -> None:
