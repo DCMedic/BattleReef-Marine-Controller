@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -92,7 +92,7 @@ def command_device(
     try:
         result = get_services().device_manager.command(name=device_name, action=payload.action, value=payload.value)
         AuditService(db).append(AuditEventCreate(
-            event_type="operator.direct_device_command", severity="warning", source="api.devices", actor_type="user",
+            event_type="operator.direct_device_command", severity="warning", source="api.devices", actor_type=principal.principal_type,
             actor_id=principal.username, entity_type="device", entity_id=device_name,
             message=f"Direct device command {payload.action} executed for {device_name}.",
             details={"role": principal.role, "action": payload.action, "value": payload.value, "result": result},
@@ -114,7 +114,7 @@ def evaluate_heater(
     try:
         result = get_services().heater_controller.evaluate()
         AuditService(db).append(AuditEventCreate(
-            event_type="operator.direct_heater_evaluation", source="api.devices", actor_type="user", actor_id=principal.username,
+            event_type="operator.direct_heater_evaluation", source="api.devices", actor_type=principal.principal_type, actor_id=principal.username,
             entity_type="device", entity_id="heater", message="Direct heater automation evaluation requested.",
             details={"role": principal.role, "decision": result.get("decision")},
         ))
