@@ -111,6 +111,7 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def run_startup_checks() -> None:
+        AuthService.validate_security_config()
         ensure_database_schema()
         db = SessionLocal()
         try:
