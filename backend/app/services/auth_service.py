@@ -52,6 +52,7 @@ class AuthService:
             "sub": user.username,
             "role": user.role,
             "principal_type": user.principal_type,
+            "ver": user.token_version,
             "iat": now,
             "exp": now + timedelta(seconds=ttl),
             "iss": settings.auth_token_issuer,
@@ -70,7 +71,7 @@ class AuthService:
     def create_user(self, username: str, password: str, role: str, principal_type: str = "user") -> UserRecord:
         if self.get_user(username) is not None:
             raise ValueError("username_already_exists")
-        record = UserRecord(username=username, password_hash=self.hash_password(password), role=role, principal_type=principal_type, active=True)
+        record = UserRecord(username=username, password_hash=self.hash_password(password), role=role, principal_type=principal_type, token_version=1, active=True)
         self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
@@ -83,12 +84,18 @@ class AuthService:
         user = self.get_user(username)
         if user is None:
             return None
-        if role is not None:
+        security_state_changed = False
+        if role is not None and role != user.role:
             user.role = role
-        if active is not None:
+            security_state_changed = True
+        if active is not None and active != user.active:
             user.active = active
+            security_state_changed = True
         if password is not None:
             user.password_hash = self.hash_password(password)
+            security_state_changed = True
+        if security_state_changed:
+            user.token_version = int(user.token_version or 0) + 1
         self.db.commit()
         self.db.refresh(user)
         return user
