@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.db.models.user import UserRecord
 
 ROLE_LEVEL = {"viewer": 10, "operator": 20, "engineer": 30, "administrator": 40}
+DEV_JWT_SECRET = "development-only-change-me-development-only"
 _password_hash = PasswordHash.recommended()
 settings = get_settings()
 
@@ -18,6 +19,14 @@ settings = get_settings()
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def validate_security_config() -> None:
+        if settings.app_env.lower() not in {"development", "test"}:
+            if settings.auth_jwt_secret == DEV_JWT_SECRET or len(settings.auth_jwt_secret) < 32:
+                raise RuntimeError("AUTH_JWT_SECRET must be replaced with a strong secret outside development")
+            if not settings.auth_bootstrap_admin_username.strip() or len(settings.auth_bootstrap_admin_password) < 12:
+                raise RuntimeError("A bootstrap administrator must be configured for first secure deployment")
 
     @staticmethod
     def hash_password(password: str) -> str:
@@ -42,32 +51,26 @@ class AuthService:
         payload = {
             "sub": user.username,
             "role": user.role,
+            "principal_type": user.principal_type,
             "iat": now,
             "exp": now + timedelta(seconds=ttl),
             "iss": settings.auth_token_issuer,
             "aud": settings.auth_token_audience,
         }
-        token = jwt.encode(payload, settings.auth_jwt_secret, algorithm="HS256")
-        return token, ttl
+        return jwt.encode(payload, settings.auth_jwt_secret, algorithm="HS256"), ttl
 
     @staticmethod
     def decode_token(token: str) -> dict:
-        return jwt.decode(
-            token,
-            settings.auth_jwt_secret,
-            algorithms=["HS256"],
-            issuer=settings.auth_token_issuer,
-            audience=settings.auth_token_audience,
-        )
+        return jwt.decode(token, settings.auth_jwt_secret, algorithms=["HS256"], issuer=settings.auth_token_issuer, audience=settings.auth_token_audience)
 
     @staticmethod
     def role_allows(actual: str, required: str) -> bool:
         return ROLE_LEVEL.get(actual, -1) >= ROLE_LEVEL[required]
 
-    def create_user(self, username: str, password: str, role: str) -> UserRecord:
+    def create_user(self, username: str, password: str, role: str, principal_type: str = "user") -> UserRecord:
         if self.get_user(username) is not None:
             raise ValueError("username_already_exists")
-        record = UserRecord(username=username, password_hash=self.hash_password(password), role=role, active=True)
+        record = UserRecord(username=username, password_hash=self.hash_password(password), role=role, principal_type=principal_type, active=True)
         self.db.add(record)
         self.db.commit()
         self.db.refresh(record)
@@ -93,7 +96,5 @@ class AuthService:
     def ensure_bootstrap_admin(self) -> None:
         username = settings.auth_bootstrap_admin_username.strip()
         password = settings.auth_bootstrap_admin_password
-        if not username or not password:
-            return
-        if self.get_user(username) is None:
-            self.create_user(username, password, "administrator")
+        if username and password and self.get_user(username) is None:
+            self.create_user(username, password, "administrator", "user")
