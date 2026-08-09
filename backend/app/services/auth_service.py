@@ -27,12 +27,6 @@ class AuthService:
         if settings.app_env.lower() not in {"development", "test"}:
             if settings.auth_jwt_secret == DEV_JWT_SECRET or len(settings.auth_jwt_secret) < 32:
                 raise RuntimeError("AUTH_JWT_SECRET must be replaced with a strong secret outside development")
-            if (
-                not settings.auth_bootstrap_admin_username.strip()
-                or len(settings.auth_bootstrap_admin_password) < 12
-                or settings.auth_bootstrap_admin_password == DEV_BOOTSTRAP_PASSWORD
-            ):
-                raise RuntimeError("A non-example bootstrap administrator credential must be configured for first secure deployment")
 
     @staticmethod
     def hash_password(password: str) -> str:
@@ -155,7 +149,26 @@ class AuthService:
         return user
 
     def ensure_bootstrap_admin(self) -> None:
+        if self.db is None:
+            raise RuntimeError("database_session_required")
+
+        existing_admin = self.db.scalar(
+            select(UserRecord)
+            .where(UserRecord.role == "administrator", UserRecord.active.is_(True))
+            .limit(1)
+        )
+        if existing_admin is not None:
+            return
+
         username = settings.auth_bootstrap_admin_username.strip()
         password = settings.auth_bootstrap_admin_password
-        if username and password and self.get_user(username) is None:
-            self.create_user(username, password, "administrator", "user")
+        if not username or not password:
+            raise RuntimeError("No active administrator exists; configure bootstrap administrator credentials")
+        if settings.app_env.lower() not in {"development", "test"}:
+            if len(password) < 12 or password == DEV_BOOTSTRAP_PASSWORD:
+                raise RuntimeError("Bootstrap administrator password must be replaced outside development")
+
+        existing = self.get_user(username)
+        if existing is not None:
+            raise RuntimeError("Bootstrap username already exists but is not an active administrator")
+        self.create_user(username, password, "administrator", "user")
