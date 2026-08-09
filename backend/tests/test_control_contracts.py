@@ -11,8 +11,10 @@ from app.services.audit_service import AuditService, GENESIS_HASH
 from app.services.auth_service import AuthService
 from app.services.command_service import CommandService
 from app.services.mqtt_listener import _ack_topic_identity, _telemetry_topic_identity
+from app.services.physical_verification_service import PhysicalVerificationService
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
+from app.services.telemetry_plausibility_service import TelemetryPlausibilityService
 from app.services.telemetry_service import _parse_timestamp
 
 
@@ -57,21 +59,7 @@ def test_parse_timestamp_normalizes_iso_zulu() -> None:
 
 
 def test_audit_hash_is_deterministic_and_tamper_sensitive() -> None:
-    values = dict(
-        occurred_at=datetime(2026, 8, 8, 18, 58, tzinfo=timezone.utc),
-        event_type="security.ack_rejected",
-        severity="critical",
-        outcome="rejected",
-        source="mqtt_listener",
-        actor_type="mqtt_identity",
-        actor_id="heater_main",
-        entity_type="command",
-        entity_id="42",
-        correlation_id="corr-42",
-        message="ACK rejected.",
-        details={"reason": "ack_correlation_id_mismatch"},
-        previous_hash=GENESIS_HASH,
-    )
+    values = dict(occurred_at=datetime(2026, 8, 8, 18, 58, tzinfo=timezone.utc), event_type="security.ack_rejected", severity="critical", outcome="rejected", source="mqtt_listener", actor_type="mqtt_identity", actor_id="heater_main", entity_type="command", entity_id="42", correlation_id="corr-42", message="ACK rejected.", details={"reason": "ack_correlation_id_mismatch"}, previous_hash=GENESIS_HASH)
     first = AuditService.calculate_hash(**values)
     second = AuditService.calculate_hash(**values)
     assert first == second
@@ -149,11 +137,27 @@ def test_schedule_intensity_presets_are_bounded() -> None:
 def test_leak_probe_zero_is_dry_and_one_is_alert() -> None:
     watchdog = object.__new__(SafetyWatchdogService)
     runtime_alerts.clear("leak_leak_probe_a")
-    dry_record = SimpleNamespace(value_double=0.0, value_text=None)
+    dry_record = SimpleNamespace(value_double=0.0, value_text=None, quality="good")
     dry_result = watchdog._check_leak_probes({"leak_probe_a": dry_record})[0]
     assert LEAK_EXPECTED_DRY_VALUE == "0.0"
     assert dry_result["status"] == "ok"
-    wet_record = SimpleNamespace(value_double=1.0, value_text=None)
+    wet_record = SimpleNamespace(value_double=1.0, value_text=None, quality="good")
     wet_result = watchdog._check_leak_probes({"leak_probe_a": wet_record})[0]
     assert wet_result["status"] == "alert"
+    suspect_dry = SimpleNamespace(value_double=0.0, value_text=None, quality="suspect")
+    suspect_result = watchdog._check_leak_probes({"leak_probe_a": suspect_dry})[0]
+    assert suspect_result["status"] == "alert"
     runtime_alerts.clear("leak_leak_probe_a")
+
+
+def test_plausibility_contract_has_conservative_absolute_bounds() -> None:
+    assert TelemetryPlausibilityService.ABSOLUTE_BOUNDS["tank_salinity_main"] == (20.0, 45.0)
+    assert TelemetryPlausibilityService.MAX_STEP["tank_salinity_main"] == 1.5
+    assert TelemetryPlausibilityService.ABSOLUTE_BOUNDS["tank_temp_main"] == (50.0, 100.0)
+
+
+def test_independent_binary_signal_can_contradict_device_report() -> None:
+    assert PhysicalVerificationService.verify_binary_with_signal(True, 820.0, 150.0) == ("verified", "reported_state_matches_independent_signal")
+    assert PhysicalVerificationService.verify_binary_with_signal(True, 0.0, 150.0)[0] == "critical"
+    assert PhysicalVerificationService.verify_binary_with_signal(False, 250.0, 10.0)[0] == "critical"
+    assert PhysicalVerificationService.verify_binary_with_signal(False, None, 10.0)[0] == "unknown"

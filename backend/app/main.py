@@ -17,6 +17,7 @@ from app.api.routes import (
     device_states,
     health,
     nodes,
+    physical_verification,
     schedules,
     stream,
     system,
@@ -32,6 +33,7 @@ from app.services.auth_service import AuthService
 from app.services.command_dispatcher import start_command_dispatcher
 from app.services.device_health_service import DeviceHealthService
 from app.services.mqtt_listener import start_mqtt_listener
+from app.services.physical_verification_service import PhysicalVerificationService
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
 
@@ -86,11 +88,27 @@ def start_device_health_loop() -> None:
     threading.Thread(target=loop, name="device-health", daemon=True).start()
 
 
+def start_physical_verification_loop() -> None:
+    def loop() -> None:
+        while True:
+            db = SessionLocal()
+            try:
+                results = PhysicalVerificationService(db).evaluate()
+                print(f"PHYSICAL VERIFICATION: {results}")
+            except Exception as exc:
+                db.rollback()
+                print(f"[PHYSICAL VERIFY] Evaluation error: {exc}")
+            finally:
+                db.close()
+            time.sleep(15)
+    threading.Thread(target=loop, name="physical-verification", daemon=True).start()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
-        version="0.3.0",
-        description="Backend API for BattleReef monitoring, automation, authenticated control, and device health.",
+        version="0.4.0",
+        description="Backend API for BattleReef monitoring, automation, authenticated control, device health, and independent physical verification.",
         debug=settings.app_debug,
     )
     app.add_middleware(
@@ -118,6 +136,7 @@ def create_app() -> FastAPI:
     protected_v1.include_router(device_health.router)
     protected_v1.include_router(device_states.router)
     protected_v1.include_router(nodes.router)
+    protected_v1.include_router(physical_verification.router)
     protected_v1.include_router(schedules.router)
     protected_v1.include_router(stream.router)
     protected_v1.include_router(tanks.router)
@@ -141,6 +160,7 @@ def create_app() -> FastAPI:
         start_command_dispatcher()
         start_safety_watchdog_loop()
         start_device_health_loop()
+        start_physical_verification_loop()
 
     return app
 
