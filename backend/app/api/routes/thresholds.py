@@ -28,7 +28,7 @@ class ThresholdPresetApplyRequest(BaseModel):
 
 def _audit_config(db: Session, principal: Principal, event_type: str, message: str, details: dict[str, Any]) -> None:
     AuditService(db).append(AuditEventCreate(
-        event_type=event_type, source="api.thresholds", actor_type="user", actor_id=principal.username,
+        event_type=event_type, source="api.thresholds", actor_type=principal.principal_type, actor_id=principal.username,
         entity_type="threshold_configuration", message=message, details={"role": principal.role, **details},
     ))
 
