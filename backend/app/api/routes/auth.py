@@ -45,8 +45,11 @@ def create_user(payload: UserCreateRequest, principal: Principal = Depends(requi
 
 @router.put("/users/{username}", response_model=UserResponse)
 def update_user(username: str, payload: UserUpdateRequest, principal: Principal = Depends(require_role("administrator")), db: Session = Depends(get_db)):
-    if username == principal.username and payload.active is False:
-        raise HTTPException(status_code=400, detail="cannot_disable_current_administrator")
+    if username == principal.username:
+        if payload.active is False:
+            raise HTTPException(status_code=400, detail="cannot_disable_current_administrator")
+        if payload.role is not None and payload.role != "administrator":
+            raise HTTPException(status_code=400, detail="cannot_demote_current_administrator")
     user = AuthService(db).update_user(username, role=payload.role, active=payload.active, password=payload.password)
     if user is None:
         raise HTTPException(status_code=404, detail="user_not_found")
