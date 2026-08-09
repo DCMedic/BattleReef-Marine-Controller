@@ -12,6 +12,7 @@ from app.api.routes import (
     audit,
     auth,
     commands,
+    device_health,
     devices,
     device_states,
     health,
@@ -29,6 +30,7 @@ from app.db.schema import ensure_database_schema
 from app.db.session import SessionLocal
 from app.services.auth_service import AuthService
 from app.services.command_dispatcher import start_command_dispatcher
+from app.services.device_health_service import DeviceHealthService
 from app.services.mqtt_listener import start_mqtt_listener
 from app.services.safety_watchdog import SafetyWatchdogService
 from app.services.schedule_engine import ScheduleEngine
@@ -41,8 +43,7 @@ def start_schedule_loop() -> None:
         while True:
             db = SessionLocal()
             try:
-                engine = ScheduleEngine(db)
-                result = engine.evaluate()
+                result = ScheduleEngine(db).evaluate()
                 print("SCHEDULE ENGINE:", result)
             except Exception as exc:
                 db.rollback()
@@ -58,8 +59,7 @@ def start_safety_watchdog_loop() -> None:
         while True:
             db = SessionLocal()
             try:
-                watchdog = SafetyWatchdogService(db)
-                result = watchdog.evaluate()
+                result = SafetyWatchdogService(db).evaluate()
                 print("SAFETY WATCHDOG:", result)
             except Exception as exc:
                 db.rollback()
@@ -70,11 +70,27 @@ def start_safety_watchdog_loop() -> None:
     threading.Thread(target=loop, name="safety-watchdog", daemon=True).start()
 
 
+def start_device_health_loop() -> None:
+    def loop() -> None:
+        while True:
+            db = SessionLocal()
+            try:
+                records = DeviceHealthService(db).evaluate_all()
+                print(f"DEVICE HEALTH: evaluated={len(records)}")
+            except Exception as exc:
+                db.rollback()
+                print(f"[DEVICE HEALTH] Evaluation error: {exc}")
+            finally:
+                db.close()
+            time.sleep(30)
+    threading.Thread(target=loop, name="device-health", daemon=True).start()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
-        version="0.2.0",
-        description="Backend API for BattleReef aquarium monitoring, automation, device control, and audited RBAC.",
+        version="0.3.0",
+        description="Backend API for BattleReef monitoring, automation, authenticated control, and device health.",
         debug=settings.app_debug,
     )
     app.add_middleware(
@@ -99,6 +115,7 @@ def create_app() -> FastAPI:
     protected_v1.include_router(alerts.router)
     protected_v1.include_router(audit.router)
     protected_v1.include_router(commands.router)
+    protected_v1.include_router(device_health.router)
     protected_v1.include_router(device_states.router)
     protected_v1.include_router(nodes.router)
     protected_v1.include_router(schedules.router)
@@ -123,6 +140,7 @@ def create_app() -> FastAPI:
         start_schedule_loop()
         start_command_dispatcher()
         start_safety_watchdog_loop()
+        start_device_health_loop()
 
     return app
 
