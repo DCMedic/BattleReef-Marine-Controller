@@ -31,9 +31,16 @@ def current_principal(
     username = claims.get("sub")
     role = claims.get("role")
     principal_type = claims.get("principal_type")
+    token_version = claims.get("ver")
     user = AuthService(db).get_user(str(username)) if username else None
-    if user is None or not user.active or user.role != role or user.principal_type != principal_type:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="principal_inactive_or_changed")
+    if (
+        user is None
+        or not user.active
+        or user.role != role
+        or user.principal_type != principal_type
+        or int(user.token_version or 0) != token_version
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="principal_inactive_changed_or_revoked")
     return Principal(username=user.username, role=user.role, principal_type=user.principal_type)
 
 
