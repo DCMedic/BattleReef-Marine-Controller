@@ -12,6 +12,7 @@ from app.db.models.user import UserRecord
 
 ROLE_LEVEL = {"viewer": 10, "operator": 20, "engineer": 30, "administrator": 40}
 DEV_JWT_SECRET = "development-only-change-me-development-only"
+DEV_BOOTSTRAP_PASSWORD = "ChangeThisAdminPassword123!"
 _password_hash = PasswordHash.recommended()
 settings = get_settings()
 
@@ -25,8 +26,12 @@ class AuthService:
         if settings.app_env.lower() not in {"development", "test"}:
             if settings.auth_jwt_secret == DEV_JWT_SECRET or len(settings.auth_jwt_secret) < 32:
                 raise RuntimeError("AUTH_JWT_SECRET must be replaced with a strong secret outside development")
-            if not settings.auth_bootstrap_admin_username.strip() or len(settings.auth_bootstrap_admin_password) < 12:
-                raise RuntimeError("A bootstrap administrator must be configured for first secure deployment")
+            if (
+                not settings.auth_bootstrap_admin_username.strip()
+                or len(settings.auth_bootstrap_admin_password) < 12
+                or settings.auth_bootstrap_admin_password == DEV_BOOTSTRAP_PASSWORD
+            ):
+                raise RuntimeError("A non-example bootstrap administrator credential must be configured for first secure deployment")
 
     @staticmethod
     def hash_password(password: str) -> str:
