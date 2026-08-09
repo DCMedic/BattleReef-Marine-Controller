@@ -12,17 +12,20 @@ class TokenResponse(BaseModel):
     expires_in: int
     username: str
     role: str
+    principal_type: str
 
 
 class PrincipalResponse(BaseModel):
     username: str
     role: str
+    principal_type: str
 
 
 class UserCreateRequest(BaseModel):
     username: str = Field(min_length=3, max_length=100, pattern=r"^[A-Za-z0-9_.-]+$")
     password: str = Field(min_length=12, max_length=256)
     role: str = Field(pattern=r"^(viewer|operator|engineer|administrator)$")
+    principal_type: str = Field(default="user", pattern=r"^(user|service)$")
 
 
 class UserUpdateRequest(BaseModel):
@@ -35,4 +38,5 @@ class UserResponse(BaseModel):
     id: int
     username: str
     role: str
+    principal_type: str
     active: bool
