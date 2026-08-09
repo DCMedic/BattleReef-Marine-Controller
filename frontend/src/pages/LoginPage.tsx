@@ -14,7 +14,7 @@ export default function LoginPage({ onAuthenticated }: { onAuthenticated: (princ
     setError("");
     try {
       const session = await login(username, password);
-      onAuthenticated({ username: session.username, role: session.role });
+      onAuthenticated({ username: session.username, role: session.role, principal_type: session.principal_type });
     } catch {
       setError("Authentication failed. Verify your username and password.");
     } finally {
