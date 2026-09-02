@@ -1,0 +1,46 @@
+name: BRMC Hardware EVT CI
+
+on:
+  push:
+    branches:
+      - hardware/brmc-consumer-evt-v1.0-fab
+    paths:
+      - 'hardware/consumer/evt-v1.0-fab/**'
+      - '.github/workflows/brmc-hardware-evt.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate KiCad project
+        run: python3 hardware/consumer/evt-v1.0-fab/generate_brmc_evt.py
+      - name: Install KiCad
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kicad
+          kicad-cli version
+      - name: Validate PCB
+        run: |
+          mkdir -p hardware/consumer/evt-v1.0-fab/fab
+          kicad-cli pcb drc --severity-error --exit-code-violations             -o hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0_DRC.rpt             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+      - name: Export fabrication files
+        run: |
+          FAB=hardware/consumer/evt-v1.0-fab/fab
+          PCB=hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+          kicad-cli pcb export gerbers -o "$FAB/gerbers" "$PCB"
+          kicad-cli pcb export drill --excellon-separate-th -o "$FAB/drill" "$PCB"
+          kicad-cli pcb export pos --format csv --units mm -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0_positions.csv" "$PCB"
+          kicad-cli pcb export ipc356 -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.ipc" "$PCB"
+          kicad-cli pcb export step --board-only --include-tracks --include-pads --include-inner-copper             -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.step" "$PCB"
+      - name: Archive source
+        run: |
+          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb hardware/consumer/evt-v1.0-fab/fab/
+          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro hardware/consumer/evt-v1.0-fab/fab/
+          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv hardware/consumer/evt-v1.0-fab/fab/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BRMC-Consumer-EVT-v1.0-Fabrication
+          path: hardware/consumer/evt-v1.0-fab/fab/
+          if-no-files-found: error
