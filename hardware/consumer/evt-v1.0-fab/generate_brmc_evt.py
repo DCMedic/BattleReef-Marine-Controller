@@ -30,17 +30,28 @@ class Board:
         netpads={}
         for p in self.pads:
             if p["net"]: netpads.setdefault(p["net"],[]).append(p)
-        used=[n for n,p in netpads.items() if len(p)>=2]; ys=[20.0+i*1.05 for i in range(38)]
+        used=[n for n,p in netpads.items() if len(p)>=2]; ys=[16.5+i*1.25 for i in range(38)]
         if len(used)>len(ys): raise RuntimeError((len(used),len(ys)))
         lanes={n:y for n,y in zip(sorted(used),ys)}
         for n,plist in netpads.items():
             if len(plist)<2: continue
             nid=self.netid(n); by=lanes[n]; xs=[]
             for k,p in enumerate(plist):
-                ex=p["x"]+((k%3)-1)*0.28
-                if abs(ex-p["x"])>1e-6: self.segs.append((p["x"],p["y"],ex,p["y"],0.25,"F.Cu",nid))
-                self.segs.append((ex,p["y"],ex,by,0.25,"F.Cu",nid)); self.vias.append((ex,by,0.8,0.4,nid)); xs.append(ex)
-            self.segs.append((min(xs),by,max(xs),by,0.25,"B.Cu",nid))
+                # Separate connector fanout classes by copper layer.  This keeps
+                # through-hole header rows and opposite-side fanout from crossing.
+                if p["y"] > 68.5:
+                    ly="In3.Cu"; ex=p["x"]+1.25
+                elif p["y"] > 67.5:
+                    ly="In1.Cu"; ex=p["x"]
+                elif p["y"] >= 60:
+                    ly="F.Cu"; ex=p["x"]
+                else:
+                    ly="In4.Cu"; ex=p["x"]
+                if abs(ex-p["x"])>1e-6:
+                    self.segs.append((p["x"],p["y"],ex,p["y"],0.20,ly,nid))
+                self.segs.append((ex,p["y"],ex,by,0.20,ly,nid))
+                self.vias.append((ex,by,0.7,0.35,nid)); xs.append(ex)
+            self.segs.append((min(xs),by,max(xs),by,0.20,"B.Cu",nid))
     def _fp(self,fp):
         q=lambda v:f'{v:.3f}'
         out=[f'  (footprint "BRMC:HDR_{fp["ref"]}"','    (layer "F.Cu")',f'    (uuid "{uid()}")',f'    (at {q(fp["x"])} {q(fp["y"])})',
