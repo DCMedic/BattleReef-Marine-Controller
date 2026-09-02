@@ -24,11 +24,16 @@ jobs:
       - name: Validate PCB
         run: |
           mkdir -p hardware/consumer/evt-v1.0-fab/fab
+          set +e
           kicad-cli pcb drc --severity-error --exit-code-violations             -o hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0_DRC.rpt             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+          rc=$?
+          cat hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0_DRC.rpt || true
+          exit $rc
       - name: Export fabrication files
         run: |
           FAB=hardware/consumer/evt-v1.0-fab/fab
           PCB=hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+          mkdir -p "$FAB/gerbers" "$FAB/drill"
           kicad-cli pcb export gerbers -o "$FAB/gerbers" "$PCB"
           kicad-cli pcb export drill --excellon-separate-th -o "$FAB/drill" "$PCB"
           kicad-cli pcb export pos --format csv --units mm -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0_positions.csv" "$PCB"
