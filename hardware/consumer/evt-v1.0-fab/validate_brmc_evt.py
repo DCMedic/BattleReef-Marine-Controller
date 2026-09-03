@@ -85,6 +85,59 @@ def validate_source() -> None:
     pcb_refs = set(re.findall(r'\(property "Reference" "([JH][^"]+)"', pcb))
     require(connector_refs <= pcb_refs, "pinout connector missing from PCB source")
 
+    status = json.loads(read(ROOT / "release-status.json"))
+    evidence = json.loads(read(ROOT / "release-gate-evidence.json"))
+    require(status["gate_evidence_file"] == "release-gate-evidence.json", "release gate evidence link missing")
+    require(evidence["artifact"] == "BRMC Consumer EVT v1.0 modular backplane", "wrong gate evidence artifact")
+    gates = evidence["gates"]
+    require(set(gates) == {"mechanical_mounting", "fabricator_dfm", "production_connectors", "independent_review"},
+            "unexpected external gate set")
+    require(gates["production_connectors"]["connector_count"] == 13, "connector gate count is not 13")
+
+    with (ROOT / "connector-production-verification.csv").open(newline="", encoding="utf-8") as handle:
+        connector_verification = list(csv.DictReader(handle))
+    require(len(connector_verification) == 13, "expected 13 production connector verification rows")
+    require({row["Ref"] for row in connector_verification} == connector_refs,
+            "production connector verification references do not match the pinout")
+    for row in connector_verification:
+        if row["Status"] == "VERIFIED":
+            for field in ("Production board MPN", "Mating MPN/module", "Manufacturer drawing revision",
+                          "Reviewer", "Date", "Evidence reference"):
+                require(row[field].strip(), f'{row["Ref"]} marked VERIFIED without {field}')
+            for field in ("Voltage rating verified", "Current per pin verified", "Pad/drill verified",
+                          "Body/courtyard verified", "Keying and pin-1 orientation verified",
+                          "Mating direction/access verified"):
+                require(row[field] == "YES", f'{row["Ref"]} marked VERIFIED without {field}=YES')
+
+    gate_statuses = {gate["status"] for gate in gates.values()}
+    verified_connectors = [row for row in connector_verification if row["Status"] == "VERIFIED"]
+    require(gates["production_connectors"]["verified_connector_count"] == len(verified_connectors),
+            "connector verified count does not match the verification table")
+    all_external_closed = gate_statuses == {"CLOSED"}
+    if gates["mechanical_mounting"]["status"] == "CLOSED":
+        for field in ("approved_enclosure_revision", "approver", "approval_date", "report"):
+            require(gates["mechanical_mounting"][field], f"mechanical gate closed without {field}")
+    if gates["fabricator_dfm"]["status"] == "CLOSED":
+        for field in ("fabricator", "quote_or_job_id", "approved_stackup_revision", "dfm_report", "approver", "approval_date"):
+            require(gates["fabricator_dfm"][field], f"fabricator gate closed without {field}")
+    if gates["production_connectors"]["status"] == "CLOSED":
+        require(len(verified_connectors) == 13, "production connector gate closed without 13 verified connectors")
+    if gates["independent_review"]["status"] == "CLOSED":
+        for field in ("reviewer", "qualifications", "review_date", "disposition", "report"):
+            require(gates["independent_review"][field], f"independent review gate closed without {field}")
+        require(gates["independent_review"]["disposition"] in {"APPROVED", "APPROVED_WITH_CLOSED_ACTIONS"},
+                "independent review gate has a non-approving disposition")
+    require(evidence["fabrication_release_authorized"] == all_external_closed,
+            "fabrication authorization does not match external gate closure")
+    require(status["fabrication_release_authorized"] == all_external_closed,
+            "release status authorization does not match external gate closure")
+    require(evidence["commercial_production_authorized"] is False,
+            "this EVT evidence record must not authorize commercial production")
+
+    read(ROOT / "EXTERNAL_GATE_HANDOFF.md")
+    read(ROOT / "fabricator-stackup-dfm-request.csv")
+    read(ROOT / "independent-review-checklist.csv")
+
 
 def validate_checksums(fab: Path) -> None:
     manifest = fab / "SHA256SUMS"
@@ -113,6 +166,11 @@ def validate_fabrication(fab: Path) -> None:
         f"{STEM}.ipc",
         f"{STEM}.step",
         "release-status.json",
+        "release-gate-evidence.json",
+        "EXTERNAL_GATE_HANDOFF.md",
+        "fabricator-stackup-dfm-request.csv",
+        "connector-production-verification.csv",
+        "independent-review-checklist.csv",
         "README.md",
         f"drill/{STEM}-PTH.drl",
         f"drill/{STEM}-NPTH.drl",
@@ -157,6 +215,9 @@ def validate_fabrication(fab: Path) -> None:
     require((fab / f"{STEM}.step").stat().st_size > 1_000_000, "STEP model is unexpectedly small")
     status = json.loads(read(fab / "release-status.json"))
     require(status["commercial_production_authorized"] is False, "EVT package must not authorize commercial production")
+    evidence = json.loads(read(fab / "release-gate-evidence.json"))
+    require(status["fabrication_release_authorized"] == evidence["fabrication_release_authorized"],
+            "fabrication authorization differs between status and evidence")
     validate_checksums(fab)
 
 

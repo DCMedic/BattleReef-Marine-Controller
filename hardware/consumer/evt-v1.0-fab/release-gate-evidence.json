@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "artifact": "BRMC Consumer EVT v1.0 modular backplane",
+  "evaluated_utc": "2026-09-03",
+  "validated_ci_baseline": {
+    "source_commit": "7ee8025b67477b51e17edb343fe79a6a2d4b94c9",
+    "workflow_run": "https://github.com/DCMedic/BattleReef-Marine-Controller/actions/runs/33701186394",
+    "artifact_id": 9873583460,
+    "artifact_sha256": "359cef7259b0597dd46f328ae313cf28e332b8d05d6a7f11cb19e7957186ca29",
+    "kicad_version": "9.0.9",
+    "drc_violations": 0,
+    "unconnected_pads": 0,
+    "footprint_errors": 0
+  },
+  "gates": {
+    "mechanical_mounting": {
+      "status": "BLOCKED_NO_MATCHING_ENCLOSURE_DEFINITION",
+      "pcb_datum": "upper-left corner of the 220 x 78 mm Edge.Cuts rectangle",
+      "pcb_holes_mm": [
+        {"reference": "H1", "x": 7.0, "y": 7.0, "diameter": 3.2},
+        {"reference": "H2", "x": 110.0, "y": 7.0, "diameter": 3.2},
+        {"reference": "H3", "x": 213.0, "y": 7.0, "diameter": 3.2},
+        {"reference": "H4", "x": 7.0, "y": 71.0, "diameter": 3.2},
+        {"reference": "H5", "x": 110.0, "y": 71.0, "diameter": 3.2},
+        {"reference": "H6", "x": 213.0, "y": 71.0, "diameter": 3.2}
+      ],
+      "evidence_examined": [
+        "BRMC_v0.7_Base_Shell.step: no PCB boss or mounting-hole geometry",
+        "BRMC_v0.7_Main_PCB_220x78.step: board envelope only; no holes",
+        "BRMC_v0.7_Mechanical_Fit_Interference_Report.csv: envelope fit only",
+        "BRMC_Consumer_Prototype_v0.2.step: six bosses belong to a different 245 x 60 mm Main_IO_PCB"
+      ],
+      "closure_requires": "Released enclosure base/boss CAD or controlled drawing with the same datum, all six axes, standoff diameter/height, insert specification, and positional tolerances; then a signed tolerance-stack and collision check.",
+      "approved_enclosure_revision": null,
+      "approver": null,
+      "approval_date": null,
+      "report": null
+    },
+    "fabricator_dfm": {
+      "status": "AWAITING_FABRICATOR_RETURN",
+      "request_file": "fabricator-stackup-dfm-request.csv",
+      "fabricator": null,
+      "quote_or_job_id": null,
+      "approved_stackup_revision": null,
+      "dfm_report": null,
+      "approver": null,
+      "approval_date": null
+    },
+    "production_connectors": {
+      "status": "BLOCKED_INTERFACE_AND_MPN_SELECTION",
+      "verification_file": "connector-production-verification.csv",
+      "connector_count": 13,
+      "verified_connector_count": 0,
+      "closure_requires": "For every J reference: production board MPN, mating MPN or module interface, manufacturer drawing revision, rated voltage/current, keyed pin-1 orientation, verified KiCad pad/drill/body/courtyard, and reviewer initials."
+    },
+    "independent_review": {
+      "status": "AWAITING_QUALIFIED_REVIEWER",
+      "checklist_file": "independent-review-checklist.csv",
+      "reviewer": null,
+      "qualifications": null,
+      "review_date": null,
+      "disposition": null,
+      "report": null
+    }
+  },
+  "fabrication_release_authorized": false,
+  "commercial_production_authorized": false
+}

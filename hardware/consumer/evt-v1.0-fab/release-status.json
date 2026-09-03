@@ -4,6 +4,7 @@
   "automated_gate": "CI-enforced; accept only artifacts from a successful BRMC Hardware EVT CI run for the matching source revision",
   "fabrication_release_authorized": false,
   "commercial_production_authorized": false,
+  "gate_evidence_file": "release-gate-evidence.json",
   "open_gates": [
     "mechanical confirmation of the six-hole mounting pattern against enclosure standoffs",
     "fabricator stackup and DFM approval",
@@ -18,5 +19,6 @@
     "conductivity cell selection and AD5940 network closure",
     "power-stage inrush, load-step, and thermal validation",
     "EMC/ESD, thermal, and ingress-protection validation"
-  ]
+  ],
+  "gate_evidence_note": "The external gate evidence record documents the failed legacy mechanical comparison and the unsigned fabricator, connector, and independent-review records. These are not closed by automated CI."
 }

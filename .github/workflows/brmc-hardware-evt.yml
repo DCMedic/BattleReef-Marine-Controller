@@ -43,6 +43,11 @@ jobs:
           cp "$SRC/${STEM}_Pinout.csv" "$FAB/${STEM}_Pinout.csv"
           cp "$SRC/README.md" "$FAB/README.md"
           cp "$SRC/release-status.json" "$FAB/release-status.json"
+          cp "$SRC/release-gate-evidence.json" "$FAB/release-gate-evidence.json"
+          cp "$SRC/EXTERNAL_GATE_HANDOFF.md" "$FAB/EXTERNAL_GATE_HANDOFF.md"
+          cp "$SRC/fabricator-stackup-dfm-request.csv" "$FAB/fabricator-stackup-dfm-request.csv"
+          cp "$SRC/connector-production-verification.csv" "$FAB/connector-production-verification.csv"
+          cp "$SRC/independent-review-checklist.csv" "$FAB/independent-review-checklist.csv"
           python3 - <<'PY'
           from pathlib import Path
           import pcbnew
