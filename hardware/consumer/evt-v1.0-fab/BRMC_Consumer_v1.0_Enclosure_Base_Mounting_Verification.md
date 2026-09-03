@@ -83,6 +83,11 @@ General tolerance proposal for otherwise-undimensioned candidate geometry:
 ISO 2768-mK. This is a proposal only; it is not a substitute for material- and
 process-specific DFM approval.
 
+Insert reference sources:
+
+- <https://shop.spirol.com/item/series-29-30-short-heat-ultrasonic-insert-metric/series-29-short-heat-ultrasonic-insert-metric/151032>
+- <https://www.spirol.com/resources/white-papers/how-to-design-the-proper-hole-for-heat-ultrasonic-inserts/>
+
 ## Interference and clearance check
 
 Six OD10 x 5 boss envelopes were placed on the verified axes and checked

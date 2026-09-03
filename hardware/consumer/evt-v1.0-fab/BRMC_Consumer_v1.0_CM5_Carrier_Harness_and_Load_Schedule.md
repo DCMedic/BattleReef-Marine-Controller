@@ -26,6 +26,13 @@ treated as one released implementation.
   design: implementation reference, not BRMC verification evidence.
 - Waveshare 10.1inch DSI LCD (C) product documentation: 5 V load reference.
 
+Primary references:
+
+- <https://pip-assets.raspberrypi.com/categories/944-raspberry-pi-compute-module-5/documents/RP-008180-DS-7-cm5-datasheet.pdf>
+- <https://pip-assets.raspberrypi.com/categories/1097-raspberry-pi-compute-module-5-io-board/documents/RP-008182-DS-2-cm5io-datasheet.pdf>
+- <https://www.raspberrypi.com/documentation/computers/compute-module.html>
+- <https://www.waveshare.com/wiki/10.1inch_DSI_LCD_(C)>
+
 ## Actual repository implementation
 
 | Definition | What it actually contains | Status |
