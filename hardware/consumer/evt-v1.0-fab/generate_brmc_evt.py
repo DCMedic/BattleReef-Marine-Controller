@@ -30,15 +30,18 @@ class Board:
         netpads={}
         for p in self.pads:
             if p["net"]: netpads.setdefault(p["net"],[]).append(p)
-        used=[n for n,p in netpads.items() if len(p)>=2]; ys=[16.5+i*1.25 for i in range(38)]
+        used=[n for n,p in netpads.items() if len(p)>=2]
+        ys=[16.5+i*1.25 for i in range(38)]
         if len(used)>len(ys): raise RuntimeError((len(used),len(ys)))
         lanes={n:y for n,y in zip(sorted(used),ys)}
+
+        # First establish each pad's vertical fanout corridor.  Different
+        # connector-row classes live on separate signal layers.
+        endpoints=[]
         for n,plist in netpads.items():
             if len(plist)<2: continue
-            nid=self.netid(n); by=lanes[n]; xs=[]
-            for k,p in enumerate(plist):
-                # Separate connector fanout classes by copper layer.  This keeps
-                # through-hole header rows and opposite-side fanout from crossing.
+            by=lanes[n]
+            for p in plist:
                 if p["y"] > 68.5:
                     ly="In3.Cu"; ex=p["x"]+1.25
                 elif p["y"] > 67.5:
@@ -47,11 +50,53 @@ class Board:
                     ly="F.Cu"; ex=p["x"]
                 else:
                     ly="In4.Cu"; ex=p["x"]
+                endpoints.append({"net":n,"p":p,"by":by,"ly":ly,"ex":ex})
+
+        verticals=[]
+        for e in endpoints:
+            verticals.append({"x":e["ex"],"y0":min(e["p"]["y"],e["by"]),
+                              "y1":max(e["p"]["y"],e["by"]),"ly":e["ly"],"net":e["net"],"e":e})
+
+        # A through-via intersects every copper layer. Place it in a locally
+        # clear slot instead of blindly at the vertical trace x-coordinate.
+        VIA_SIZE=0.55; VIA_DRILL=0.30; TRACK_W=0.20; CLEAR=0.20
+        need=VIA_SIZE/2 + TRACK_W/2 + CLEAR
+        def spans(v,y): return v["y0"]-0.001 <= y <= v["y1"]+0.001
+        def safe_via(e,vx):
+            if vx < 1.0 or vx > self.w-1.0: return False
+            for v in verticals:
+                if v["net"]==e["net"]: continue
+                if spans(v,e["by"]) and abs(vx-v["x"]) < need-1e-6:
+                    return False
+            lo,hi=sorted((e["ex"],vx))
+            for v in verticals:
+                if v["net"]==e["net"] or v["ly"]!=e["ly"]: continue
+                if spans(v,e["by"]) and lo+1e-6 < v["x"] < hi-1e-6:
+                    return False
+            return True
+        def choose_via(e):
+            for step in range(0,121):
+                d=step*0.10
+                cands=[e["ex"]] if step==0 else [e["ex"]-d,e["ex"]+d]
+                for vx in cands:
+                    if safe_via(e,vx): return round(vx,3)
+            raise RuntimeError(f'no safe via for {e}')
+
+        bynet={}
+        for e in endpoints:
+            e["vx"]=choose_via(e); bynet.setdefault(e["net"],[]).append(e)
+
+        for n,elist in bynet.items():
+            nid=self.netid(n); by=lanes[n]; vxs=[]
+            for e in elist:
+                p=e["p"]; ex=e["ex"]; vx=e["vx"]; ly=e["ly"]
                 if abs(ex-p["x"])>1e-6:
-                    self.segs.append((p["x"],p["y"],ex,p["y"],0.20,ly,nid))
-                self.segs.append((ex,p["y"],ex,by,0.20,ly,nid))
-                self.vias.append((ex,by,0.7,0.35,nid)); xs.append(ex)
-            self.segs.append((min(xs),by,max(xs),by,0.20,"B.Cu",nid))
+                    self.segs.append((p["x"],p["y"],ex,p["y"],TRACK_W,ly,nid))
+                self.segs.append((ex,p["y"],ex,by,TRACK_W,ly,nid))
+                if abs(vx-ex)>1e-6:
+                    self.segs.append((ex,by,vx,by,TRACK_W,ly,nid))
+                self.vias.append((vx,by,VIA_SIZE,VIA_DRILL,nid)); vxs.append(vx)
+            self.segs.append((min(vxs),by,max(vxs),by,TRACK_W,"B.Cu",nid))
     def _fp(self,fp):
         q=lambda v:f'{v:.3f}'
         out=[f'  (footprint "BRMC:HDR_{fp["ref"]}"','    (layer "F.Cu")',f'    (uuid "{uid()}")',f'    (at {q(fp["x"])} {q(fp["y"])})',
