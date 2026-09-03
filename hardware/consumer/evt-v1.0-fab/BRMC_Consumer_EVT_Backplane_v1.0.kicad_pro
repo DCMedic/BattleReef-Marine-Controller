@@ -1,0 +1,20 @@
+{
+  "board": {},
+  "boards": [],
+  "cvpcb": {},
+  "erc": {},
+  "libraries": {},
+  "meta": {
+    "filename": "BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro",
+    "version": 1
+  },
+  "net_settings": {
+    "classes": []
+  },
+  "pcbnew": {},
+  "schematic": {},
+  "text_variables": {
+    "PRODUCT": "BRMC Consumer",
+    "REV": "1.0-EVT"
+  }
+}

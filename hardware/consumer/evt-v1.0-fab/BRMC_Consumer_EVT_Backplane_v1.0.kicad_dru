@@ -1,0 +1,41 @@
+(version 1)
+
+# Keep L2 and L5 free of routed tracks so reviewed GND pours can be added as
+# the two continuous reference layers in the controlled six-layer stackup.
+(rule "No tracks on L2 ground reference"
+  (layer "In1.Cu")
+  (constraint disallow track))
+
+(rule "No tracks on L5 ground reference"
+  (layer "In4.Cu")
+  (constraint disallow track))
+
+(rule "24V fanout width"
+  (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
+  (constraint track_width (min 0.80mm)))
+
+(rule "24V trunk width"
+  (layer "B.Cu")
+  (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
+  (constraint track_width (min 1.50mm)))
+
+(rule "24V clearance"
+  (condition "A.NetName == '24V_IN' || B.NetName == '24V_IN'")
+  (constraint clearance (min 0.30mm)))
+
+(rule "5V and ground fanout width"
+  (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
+  (constraint track_width (min 1.00mm)))
+
+(rule "5V and ground trunk width"
+  (layer "B.Cu")
+  (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
+  (constraint track_width (min 2.00mm)))
+
+(rule "3V3 width"
+  (condition "A.NetName == '3V3_SYS' && A.Type == 'Track'")
+  (constraint track_width (min 0.50mm)))
+
+(rule "Field-bus width"
+  (condition "(A.NetName == 'CAN_H' || A.NetName == 'CAN_L' || A.NetName == 'CAN_TX' || A.NetName == 'CAN_RX' || A.NetName == 'RS485_A' || A.NetName == 'RS485_B' || A.NetName == 'RS485_TX' || A.NetName == 'RS485_RX' || A.NetName == 'RS485_DE') && A.Type == 'Track'")
+  (constraint track_width (min 0.25mm)))
