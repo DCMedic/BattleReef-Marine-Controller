@@ -38,8 +38,9 @@ def validate_source() -> None:
     require(declared_layers == required_layers, f"unexpected copper layers: {sorted(declared_layers)}")
     require('(gr_rect (start 0 0) (end 220 78)' in pcb, "board outline is not 220 x 78 mm")
     require("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE" in pcb, "mandatory EVT marking missing")
-    require(pcb.count("np_thru_hole circle") == 6, "expected six M3 mounting holes")
     require(pcb.count("(size 3.200 3.200) (drill 3.200)") == 6, "unexpected mounting-hole diameter")
+    require(pcb.count("(size 3.000 3.000) (drill 3.000)") == 4,
+            "expected four Micro-Fit PCB locator holes")
 
     nets = {int(code): name for code, name in re.findall(r'^\s*\(net (\d+) "([^"]*)"\)', pcb, re.MULTILINE)}
     segment_pattern = re.compile(
@@ -100,12 +101,27 @@ def validate_source() -> None:
     }
     require({row["Pin"]: row["Net"] for row in cm5} == expected_cm5,
             "J_CM5 controlled CM5IO signal mapping changed")
-    require('"MOLEX_90130-1116_CM5IO_SIGNAL"' in pcb,
-            "J_CM5 Molex 90130-1116 value missing")
+    require('"MOLEX_90130-1216_CM5IO_SIGNAL"' in pcb,
+            "J_CM5 Molex 90130-1216 value missing")
+    for value in (
+        "MOLEX_90130-1224_STM32G0B1_CORE",
+        "MOLEX_22-23-2051_ATLAS_EZO_PH_ISO",
+        "MOLEX_22-23-2051_ATLAS_EZO_ORP_ISO",
+        "MOLEX_22-23-2051_ATLAS_EZO_EC_ISO",
+        "MOLEX_22-23-2041_DIGITAL_TEMP",
+        "MOLEX_43045-0600_POWER_HARNESS",
+        "MOLEX_22-23-2061_ISO_CAN_FD_MODULE",
+        "MOLEX_22-23-2071_ISO_RS485_MODULE",
+        "MOLEX_43045-0400_MODBUS_0_10V_8CH",
+        "MOLEX_43045-0800_POWER_MODULE_BUS",
+        "MOLEX_22-23-2041_SAFETY_RELAY_DRIVE",
+        "MOLEX_22-23-2081_SERVICE_DEBUG",
+    ):
+        require(f'"{value}"' in pcb, f"production connector value missing: {value}")
     require('(fp_rect (start -11.330 -4.875) (end 11.330 4.875)' in pcb,
-            "J_CM5 90130-1116 body envelope missing")
+            "J_CM5 90130-1216 body envelope missing")
     require('(fp_rect (start -11.580 -5.125) (end 11.580 5.125)' in pcb,
-            "J_CM5 90130-1116 courtyard missing")
+            "J_CM5 90130-1216 courtyard missing")
 
     status = json.loads(read(ROOT / "release-status.json"))
     evidence = json.loads(read(ROOT / "release-gate-evidence.json"))
@@ -121,20 +137,35 @@ def validate_source() -> None:
     require(len(connector_verification) == 13, "expected 13 production connector verification rows")
     require({row["Ref"] for row in connector_verification} == connector_refs,
             "production connector verification references do not match the pinout")
+    expected_mpns = {
+        "J_CM5": "Molex 90130-1216",
+        "J_MCU": "Molex 90130-1224",
+        "J_PH": "Molex 22-23-2051",
+        "J_ORP": "Molex 22-23-2051",
+        "J_EC": "Molex 22-23-2051",
+        "J_TEMP": "Molex 22-23-2041",
+        "J_PWR": "Molex 43045-0600",
+        "J_CAN": "Molex 22-23-2061",
+        "J_485": "Molex 22-23-2071",
+        "J_AO": "Molex 43045-0400",
+        "J_PWRMOD": "Molex 43045-0800",
+        "J_SAFE": "Molex 22-23-2041",
+        "J_SVC": "Molex 22-23-2081",
+    }
     for row in connector_verification:
-        if row["Status"] == "VERIFIED":
-            for field in ("Production board MPN", "Mating MPN/module", "Manufacturer drawing revision",
-                          "Reviewer", "Date", "Evidence reference"):
-                require(row[field].strip(), f'{row["Ref"]} marked VERIFIED without {field}')
-            for field in ("Voltage rating verified", "Current per pin verified", "Pad/drill verified",
-                          "Body/courtyard verified", "Keying and pin-1 orientation verified",
-                          "Mating direction/access verified"):
-                require(row[field] == "YES", f'{row["Ref"]} marked VERIFIED without {field}=YES')
+        require(row["Board_MPN"] == expected_mpns[row["Ref"]],
+                f'{row["Ref"]} production board MPN changed')
+        require(row["Status"] == "DESIGN_FROZEN_FOR_REVIEW",
+                f'{row["Ref"]} must remain design-frozen pending independent verification')
+        for field in ("Mating", "Rating", "Footprint", "Pin1", "Evidence"):
+            require(row[field].strip(), f'{row["Ref"]} missing controlled {field}')
+        require("TBD" not in " ".join(row.values()).upper(),
+                f'{row["Ref"]} contains an unresolved TBD')
 
     gate_statuses = {gate["status"] for gate in gates.values()}
-    verified_connectors = [row for row in connector_verification if row["Status"] == "VERIFIED"]
-    require(gates["production_connectors"]["verified_connector_count"] == len(verified_connectors),
-            "connector verified count does not match the verification table")
+    independently_verified = gates["production_connectors"]["verified_connector_count"]
+    require(isinstance(independently_verified, int) and 0 <= independently_verified <= 13,
+            "connector independently verified count is invalid")
     all_external_closed = gate_statuses == {"CLOSED"}
     if gates["mechanical_mounting"]["status"] == "CLOSED":
         for field in ("approved_enclosure_revision", "approver", "approval_date", "report"):
@@ -143,7 +174,8 @@ def validate_source() -> None:
         for field in ("fabricator", "quote_or_job_id", "approved_stackup_revision", "dfm_report", "approver", "approval_date"):
             require(gates["fabricator_dfm"][field], f"fabricator gate closed without {field}")
     if gates["production_connectors"]["status"] == "CLOSED":
-        require(len(verified_connectors) == 13, "production connector gate closed without 13 verified connectors")
+        require(independently_verified == 13,
+                "production connector gate closed without 13 independently verified connectors")
     if gates["independent_review"]["status"] == "CLOSED":
         for field in ("reviewer", "qualifications", "review_date", "disposition", "report"):
             require(gates["independent_review"][field], f"independent review gate closed without {field}")
@@ -160,6 +192,13 @@ def validate_source() -> None:
     read(ROOT / "fabricator-stackup-dfm-request.csv")
     read(ROOT / "CONNECTOR_PRECHECK.md")
     read(ROOT / "independent-review-checklist.csv")
+    read(ROOT / "BRMC_Consumer_v1.0_Engineer_Review_Index.md")
+    review_pdf = ROOT / "BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf"
+    interconnect_pdf = ROOT / f"{STEM}_Interconnect_Schematic.pdf"
+    require(review_pdf.is_file() and review_pdf.stat().st_size > 10_000,
+            "electrical engineering review PDF is missing or unexpectedly small")
+    require(interconnect_pdf.is_file() and interconnect_pdf.stat().st_size > 8_000,
+            "interconnect schematic PDF is missing or unexpectedly small")
     mechanical = read(ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md")
     require("Item 1 is **OPEN**" in mechanical, "mechanical evidence must retain Item 1 hold")
     require((ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE.step").stat().st_size > 50_000,
@@ -181,17 +220,64 @@ def validate_source() -> None:
                 for row in interference), "supplied-assembly boss interference check failed")
 
     cm5_schedule = read(ROOT / "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md")
-    require("Item 2 is **OPEN**" in cm5_schedule, "CM5 evidence must retain Item 2 hold")
+    require("Item 2 is **READY FOR INDEPENDENT REVIEW, NOT CLOSED**" in cm5_schedule,
+            "CM5 evidence must remain ready for review without claiming closure")
     with (ROOT / "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv").open(
             newline="", encoding="utf-8") as handle:
         load_rows = list(csv.DictReader(handle))
-    require(len(load_rows) >= 30, "CM5/harness load schedule is unexpectedly incomplete")
-    require(all(row["Status"] in {"HOLD", "PROVISIONAL", "RELEASED_EVT_INTERFACE"} for row in load_rows),
-            "load schedule contains an unsupported released row")
-    require(any(row["Status"] == "HOLD" for row in load_rows),
-            "Item 2 may not close while required load evidence is absent")
-    require(sum(row["Status"] == "RELEASED_EVT_INTERFACE" for row in load_rows) >= 18,
-            "CM5IO EVT endpoint mapping is not fully controlled")
+    require(len(load_rows) == 19, "expected 19 controlled harness/interface rows")
+    allowed_harness_status = {
+        "FROZEN_FOR_REVIEW", "FROZEN_WIRE_REQUIREMENT",
+        "PROCUREMENT_SELECTION_FOR_REVIEW",
+    }
+    require(all(row["Status"] in allowed_harness_status for row in load_rows),
+            "harness schedule contains an unsupported status")
+    power_harnesses = [row for row in load_rows if float(row["Design_derated_allowance_A"]) > 0]
+    for row in power_harnesses:
+        for field in (
+            "Source", "Destination", "Connector_MPNs", "Pin_or_group",
+            "Expected_continuous_A", "Calculated_worst_case_A",
+            "Design_derated_allowance_A", "Proposed_conductor", "Conductors",
+            "Connector_contact_rating_A", "Max_one_way_length_m",
+            "Warm_loop_resistance_ohm", "Warm_voltage_drop_V",
+            "Voltage_drop_percent", "Fuse_eFuse_relationship",
+            "Routing_separation",
+        ):
+            require(row[field].strip() not in {"", "TBD", "N/A"},
+                    f'{row["Record"]} power row missing {field}')
+        require(float(row["Expected_continuous_A"]) <= float(row["Calculated_worst_case_A"])
+                <= float(row["Design_derated_allowance_A"]),
+                f'{row["Record"]} current sequence is inconsistent')
+        require(float(row["Design_derated_allowance_A"]) <= float(row["Connector_contact_rating_A"]),
+                f'{row["Record"]} exceeds connector/contact rating')
+    harn01 = next(row for row in load_rows if row["Record"] == "HARN-01")
+    require(harn01["Proposed_conductor"].startswith("20 AWG"),
+            "24 V input harness is not controlled as calculated 20 AWG")
+    require(abs(float(harn01["Warm_voltage_drop_V"]) - 0.101) <= 0.002,
+            "24 V input warm voltage-drop calculation changed")
+
+    with (ROOT / "BRMC_Consumer_v1.0_Power_Budget.csv").open(newline="", encoding="utf-8") as handle:
+        power_rows = list(csv.DictReader(handle))
+    require(len(power_rows) == 13, "expected 13 endpoint power-budget rows")
+    require(sum(float(row["Design_Allowance_A"]) for row in power_rows
+                if row["Rail"] == "5V_SYS") <= 1.25,
+            "5V_SYS endpoint allowances exceed the protected branch")
+    require(sum(float(row["Design_Allowance_A"]) for row in power_rows
+                if row["Rail"] == "24V_IN") == 0.85,
+            "direct 24 V allocation changed")
+
+    with (ROOT / f"{STEM}_Netlist.csv").open(newline="", encoding="utf-8") as handle:
+        net_rows = list(csv.DictReader(handle))
+    expected_net_endpoints: dict[str, list[str]] = {}
+    for row in pinout:
+        expected_net_endpoints.setdefault(row["Net"], []).append(f'{row["Connector"]}.{row["Pin"]}')
+    require({row["Net"] for row in net_rows} == set(expected_net_endpoints),
+            "machine-readable netlist net set differs from pinout")
+    for row in net_rows:
+        require(int(row["Endpoint_count"]) == len(expected_net_endpoints[row["Net"]]),
+                f'{row["Net"]} endpoint count differs from pinout')
+        require(row["Endpoints"].split(" | ") == expected_net_endpoints[row["Net"]],
+                f'{row["Net"]} endpoint list differs from pinout')
 
 
 def validate_checksums(fab: Path) -> None:
@@ -215,6 +301,9 @@ def validate_fabrication(fab: Path) -> None:
         f"{STEM}.kicad_pcb",
         f"{STEM}.kicad_pro",
         f"{STEM}.kicad_dru",
+        "generate_brmc_evt.py",
+        "generate_engineering_review_package.py",
+        "validate_brmc_evt.py",
         f"{STEM}_Pinout.csv",
         f"{STEM}_positions.csv",
         f"{STEM}_DRC.rpt",
@@ -234,6 +323,12 @@ def validate_fabrication(fab: Path) -> None:
         "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv",
         "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md",
         "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv",
+        "BRMC_Consumer_v1.0_Power_Budget.csv",
+        "BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv",
+        f"{STEM}_Netlist.csv",
+        f"{STEM}_Interconnect_Schematic.pdf",
+        "BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf",
+        "BRMC_Consumer_v1.0_Engineer_Review_Index.md",
         "README.md",
         f"drill/{STEM}-PTH.drl",
         f"drill/{STEM}-NPTH.drl",
@@ -269,8 +364,10 @@ def validate_fabrication(fab: Path) -> None:
     pth = read(fab / "drill" / f"{STEM}-PTH.drl")
     npth = read(fab / "drill" / f"{STEM}-NPTH.drl")
     require(len(re.findall(r'^X[-0-9.]+' , pth, re.MULTILINE)) >= 102, "PTH drill hit count is unexpectedly low")
-    require(len(re.findall(r'^X[-0-9.]+' , npth, re.MULTILINE)) == 6, "expected six NPTH mounting-hole hits")
+    require(len(re.findall(r'^X[-0-9.]+' , npth, re.MULTILINE)) == 10,
+            "expected six mounting and four connector-locator NPTH hits")
     require("C3.200" in npth, "3.2 mm M3 drill tool missing")
+    require("C3.000" in npth, "3.0 mm Micro-Fit locator drill tool missing")
 
     with (fab / f"{STEM}_positions.csv").open(newline="", encoding="utf-8") as handle:
         positions = list(csv.DictReader(handle))
@@ -278,8 +375,10 @@ def validate_fabrication(fab: Path) -> None:
     require(required_connectors <= {row["Ref"] for row in positions}, "connector missing from position output")
 
     ipc = read(fab / f"{STEM}.ipc")
-    for net in ("24V_IN", "5V_SYS", "3V3_SYS", "GND", "CAN_H", "CAN_L", "RS485_A", "RS485_B"):
-        require(net in ipc, f"critical net missing from IPC-D-356 output: {net}")
+    with (fab / f"{STEM}_Netlist.csv").open(newline="", encoding="utf-8") as handle:
+        controlled_nets = list(csv.DictReader(handle))
+    for row in controlled_nets:
+        require(row["Net"] in ipc, f'controlled net missing from IPC-D-356 output: {row["Net"]}')
     require((fab / f"{STEM}.step").stat().st_size > 1_000_000, "STEP model is unexpectedly small")
     status = json.loads(read(fab / "release-status.json"))
     require(status["commercial_production_authorized"] is False, "EVT package must not authorize commercial production")

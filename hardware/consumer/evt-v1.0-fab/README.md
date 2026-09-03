@@ -1,27 +1,79 @@
 # BRMC Consumer EVT v1.0 modular backplane
 
-This directory contains the deterministic KiCad source generator and reviewable generated source for the 220 × 78 mm, six-layer BRMC Consumer modular prototype backplane.
+This directory is the controlled engineer-review release for the 220 × 78 mm,
+six-layer BRMC Consumer modular prototype backplane. The design is generated
+deterministically; review the generated KiCad source and the exact successful
+CI manufacturing artifact together.
 
-## Scope
+## Controlled scope
 
-This is an engineering EVT bare-board package for the module-interconnect backplane represented by `BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb`. It is not the complete integrated BRMC Consumer main logic/power PCB or rear precision-analog PCB described by the v0.9 architecture. It does not authorize commercial production or connection of mains voltage.
+The PCB is a passive module-interconnect backplane. It is not the complete
+integrated main logic/power board or rear precision-analog board described by
+the older v0.9 architecture. The EVT compute endpoint is an official Raspberry
+Pi CM5 IO Board revision 2, independently powered at J11 by an official 27 W
+USB-C supply. `J_CM5` is a signal-only 16-circuit interface; CM5 power is not
+carried on the backplane.
 
-The connector footprints are embedded prototype header geometry. They are not substitutes for production MPN/footprint verification or an assembly BOM.
+The current generator implements production geometry for all 13 board
+connectors:
 
-Power nets use short 0.20 mm connector escape neck-downs where required by the 2.54 mm through-hole pitch, widen after leaving the connector field, and use the controlled 1.50 mm 24 V and 2.00 mm 5 V/GND trunks on B.Cu. These neck-downs remain subject to current/thermal review for the actual EVT module loads.
+- Molex C-Grid III 90130-1216 at `J_CM5` and 90130-1224 at `J_MCU`;
+- Molex KK 254 22-23-20x1 headers for sensor, field-bus, safety and service
+  interfaces; and
+- Molex Micro-Fit 3.0 43045-0600/-0400/-0800 right-angle headers, including
+  the manufacturer-pattern locator holes, for `J_PWR`, `J_AO` and `J_PWRMOD`.
+
+`connector-production-verification.csv` freezes the design selection and cites
+the governing manufacturer evidence. Independent drawing comparison,
+first-article keying/orientation, crimp inspection and mating-access acceptance
+remain required approval evidence; the file does not claim those events have
+already occurred.
+
+## Electrical definition
+
+The source generator, pinout, interconnect schematic, machine-readable netlist,
+power budget and harness schedule together define the board-only electrical
+interface. A component-level KiCad schematic/ERC result is not asserted because
+this artifact contains no active circuitry. The CI validator instead reconciles
+the generated endpoint schedule to the PCB and its IPC-D-356 export.
+
+Power routing uses 1.50 mm `24V_IN` and 2.00 mm `5V_SYS` B.Cu trunks. Connector
+fan-out is segregated by copper layer, with L2 and L5 reserved as continuous GND
+reference planes. GND connector pads connect directly to those planes. The
+review package records calculated interface ceilings, conductor gauges,
+maximum harness lengths, warm voltage drop and branch-protection requirements.
+Unimplemented PSM-01 and daughtercard circuits must be independently reviewed
+as separate design objects and must comply with the controlled ceilings.
 
 ## Automated gates
 
-The GitHub workflow regenerates the committed KiCad sources, rejects source drift, fills the L2/L5 GND zones in an archived manufacturing copy, runs KiCad 9 DRC on that filled board, exports Gerber/drill/position/IPC-D-356/STEP outputs, verifies the L2/L5 Gerbers contain filled GND-plane regions, verifies the complete output set, and checksums every artifact. A successful run proves the checked backplane artifact passed those automated gates for that commit.
+The GitHub workflow regenerates all controlled source and review artifacts,
+rejects drift, fills the L2/L5 planes in an archived manufacturing copy, runs
+KiCad 9 DRC, exports Gerber/drill/position/IPC-D-356/STEP outputs, reconciles
+the netlist, validates the complete package, and checksums every artifact. Only
+an artifact from a successful run for the exact reviewed commit is acceptable.
 
-## Release holds
+## Review package
 
-`release-status.json` is authoritative for release disposition. The L2/L5 ground-reference planes are now implemented and covered by the source, KiCad DRC, and Gerber-content gates. Fabrication release remains held until the mounting pattern is mechanically checked against the enclosure/standoffs, the fabricator returns an approved stackup/DFM response, connector MPNs and mating orientation are verified for the intended EVT harness, and an independent qualified electrical/layout review is recorded.
+Start with `BRMC_Consumer_v1.0_Engineer_Review_Index.md` and
+`BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf`. The
+interconnect PDF, CSV schedules, KiCad files, enclosure-base candidate and
+external return forms are all included in the CI artifact.
 
-The pH/ORP guarded analog section, conductivity AFE, power-stage validation, EMC/ESD, thermal, and ingress-protection gates remain outside this backplane package and retain the holds from the controlled v0.8/v0.9 work.
+## Release status
 
-`release-gate-evidence.json` is the machine-readable external-gate record. `EXTERNAL_GATE_HANDOFF.md` explains the exact evidence needed to close it; the fabricator, connector, and independent-review CSV files are controlled return forms. Blank approval fields are intentional and must not be completed without source evidence from the named external party or responsible engineer.
+`release-status.json` and `release-gate-evidence.json` are authoritative. This
+revision is **complete for independent engineering review of the passive
+backplane scope**, but it is **not a prototype fabrication release**. The
+following approvals/evidence cannot be self-issued and remain external gates:
 
-`CONNECTOR_PRECHECK.md` records the selected mixed-family candidate architecture. The unsafe former `J_CM5` single-contact 5 V feed and external 3.3 V assignment have been removed; `J_CM5` is signal-only and the missing dedicated CM5 carrier power path remains a HOLD. Candidate MPNs are not production approvals and have not been substituted into the PCB generator.
+- responsible mechanical engineer approval of the CNC 6061 base and a
+  tolerance-aware populated/harness/thermal/service fit record;
+- fabricator-returned stackup and DFM approval tied to the exact CI artifact;
+- independent qualified electrical/layout review with all findings closed;
+- connector/harness first-article orientation, crimp, continuity and access
+  evidence; and
+- measured EVT startup, steady-state, transient/fault and thermal evidence.
 
-`BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md` and `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md` are the revision-B release-candidate records for fabrication-release Items 1 and 2. The CNC 6061 base geometry/drawing and machine-readable schedules are approval-ready but do not close the external gates while their explicitly listed engineering evidence remains absent.
+Commercial production, mains connection, and approval of absent module designs
+remain prohibited.

@@ -1,0 +1,36 @@
+Net,Electrical_domain,Endpoint_count,Endpoints,Review_note
+12V_SYS,SELV power,1,J_PWR.5,Reconcile to PCB IPC-D-356 and pinout
+24V_IN,SELV power,4,J_PWR.1 | J_AO.1 | J_PWRMOD.1 | J_SAFE.3,Reconcile to PCB IPC-D-356 and pinout
+3V3_SYS,logic power,3,J_MCU.3 | J_TEMP.1 | J_SVC.1,Reconcile to PCB IPC-D-356 and pinout
+5V_SYS,SELV power,7,J_MCU.1 | J_PH.1 | J_ORP.1 | J_EC.1 | J_PWR.3 | J_CAN.1 | J_485.1,Reconcile to PCB IPC-D-356 and pinout
+CAN_H,field differential,2,J_CAN.5 | J_PWRMOD.3,Reconcile to PCB IPC-D-356 and pinout
+CAN_L,field differential,2,J_CAN.6 | J_PWRMOD.4,Reconcile to PCB IPC-D-356 and pinout
+CAN_RX,3.3 V logic,2,J_MCU.15 | J_CAN.4,Reconcile to PCB IPC-D-356 and pinout
+CAN_TX,3.3 V logic,2,J_MCU.14 | J_CAN.3,Reconcile to PCB IPC-D-356 and pinout
+CM5_HEARTBEAT,3.3 V logic,2,J_CM5.7 | J_MCU.6,Reconcile to PCB IPC-D-356 and pinout
+CM5_RX,3.3 V logic,3,J_CM5.6 | J_MCU.5 | J_SVC.7,Reconcile to PCB IPC-D-356 and pinout
+CM5_TX,3.3 V logic,3,J_CM5.5 | J_MCU.4 | J_SVC.6,Reconcile to PCB IPC-D-356 and pinout
+EC_OFF,3.3 V logic,1,J_EC.5,Reconcile to PCB IPC-D-356 and pinout
+GND,common reference,22,J_CM5.1 | J_CM5.2 | J_CM5.15 | J_CM5.16 | J_MCU.2 | J_MCU.24 | J_PH.2 | J_ORP.2 | J_EC.2 | J_TEMP.2 | J_PWR.2 | J_PWR.4 | J_PWR.6 | J_CAN.2 | J_485.2 | J_AO.2 | J_PWRMOD.2 | J_PWRMOD.8 | J_SAFE.2 | J_SAFE.4 | J_SVC.2 | J_SVC.8,GND connects through L2/L5 planes
+GPIO_AUX0,3.3 V logic,1,J_CM5.13,Reconcile to PCB IPC-D-356 and pinout
+GPIO_AUX1,3.3 V logic,1,J_CM5.14,Reconcile to PCB IPC-D-356 and pinout
+I2C_SCL,3.3 V logic,5,J_CM5.3 | J_MCU.8 | J_PH.3 | J_ORP.3 | J_EC.3,Reconcile to PCB IPC-D-356 and pinout
+I2C_SDA,3.3 V logic,5,J_CM5.4 | J_MCU.9 | J_PH.4 | J_ORP.4 | J_EC.4,Reconcile to PCB IPC-D-356 and pinout
+NRST,3.3 V logic,2,J_MCU.23 | J_SVC.5,Reconcile to PCB IPC-D-356 and pinout
+ORP_OFF,3.3 V logic,1,J_ORP.5,Reconcile to PCB IPC-D-356 and pinout
+PH_OFF,3.3 V logic,1,J_PH.5,Reconcile to PCB IPC-D-356 and pinout
+RS485_A,field differential,3,J_485.6 | J_AO.3 | J_PWRMOD.5,Reconcile to PCB IPC-D-356 and pinout
+RS485_B,field differential,3,J_485.7 | J_AO.4 | J_PWRMOD.6,Reconcile to PCB IPC-D-356 and pinout
+RS485_DE,3.3 V logic,2,J_MCU.18 | J_485.5,Reconcile to PCB IPC-D-356 and pinout
+RS485_RX,3.3 V logic,2,J_MCU.17 | J_485.4,Reconcile to PCB IPC-D-356 and pinout
+RS485_TX,3.3 V logic,2,J_MCU.16 | J_485.3,Reconcile to PCB IPC-D-356 and pinout
+SAFETY_ACK,3.3 V logic,2,J_CM5.8 | J_MCU.7,Reconcile to PCB IPC-D-356 and pinout
+SAFETY_ENABLE,3.3 V logic,3,J_MCU.19 | J_PWRMOD.7 | J_SAFE.1,Reconcile to PCB IPC-D-356 and pinout
+SPI_CS0,3.3 V logic,2,J_CM5.12 | J_MCU.13,Reconcile to PCB IPC-D-356 and pinout
+SPI_MISO,3.3 V logic,2,J_CM5.10 | J_MCU.11,Reconcile to PCB IPC-D-356 and pinout
+SPI_MOSI,3.3 V logic,2,J_CM5.11 | J_MCU.12,Reconcile to PCB IPC-D-356 and pinout
+SPI_SCK,3.3 V logic,2,J_CM5.9 | J_MCU.10,Reconcile to PCB IPC-D-356 and pinout
+SWCLK,3.3 V logic,2,J_MCU.22 | J_SVC.4,Reconcile to PCB IPC-D-356 and pinout
+SWDIO,3.3 V logic,2,J_MCU.21 | J_SVC.3,Reconcile to PCB IPC-D-356 and pinout
+TEMP_AUX,3.3 V logic,1,J_TEMP.4,Reconcile to PCB IPC-D-356 and pinout
+TEMP_DATA,3.3 V logic,2,J_MCU.20 | J_TEMP.3,Reconcile to PCB IPC-D-356 and pinout

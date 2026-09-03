@@ -1,0 +1,14 @@
+Rail,Endpoint,Nominal_V,Expected_A,Calculated_Worst_A,Design_Allowance_A,Basis,Protection,Included_24V_Input,Status
+CM5IO 5V,CM5 + CM5IO local loads,5.0,0.9,5.0,5.0,Official CM5 input envelope; external carrier,Official 27 W USB-C PSU and CM5IO input protection,NO,FROZEN_INTERFACE_TEST_CONFIRMATION_REQUIRED
+DISPLAY_5V,Waveshare 10.1inch DSI LCD (C),5.0,0.52,0.8,1.0,Controlled display record plus 25% margin,PSM-01 dedicated 1.25 A protected branch,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_MCU safety-MCU module,5.0,0.1,0.2,0.25,Interface allocation; daughtercard must comply,PSM-01 5V_SYS 1.25 A branch limit,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_PH isolated pH carrier,5.0,0.015,0.05,0.1,Atlas 15 mA nominal; isolation/startup margin,Module OFF control; shared 5V_SYS branch,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_ORP isolated ORP carrier,5.0,0.015,0.05,0.1,Atlas 15 mA nominal; isolation/startup margin,Module OFF control; shared 5V_SYS branch,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_EC isolated EC carrier,5.0,0.015,0.05,0.1,Atlas 15 mA nominal; isolation/startup margin,Module OFF control; shared 5V_SYS branch,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_CAN isolated CAN FD module,5.0,0.08,0.15,0.2,ISO1042 plus isolated-converter interface allocation,Daughtercard input fuse/current limit required,YES,DESIGN_LIMIT_FOR_REVIEW
+5V_SYS,J_485 isolated RS-485 module,5.0,0.08,0.15,0.2,ISO1410 plus isolated-converter interface allocation,Daughtercard input fuse/current limit required,YES,DESIGN_LIMIT_FOR_REVIEW
+3V3_SYS,J_TEMP + J_SVC reference,3.3,0.03,0.08,0.1,Interface allocation; source owned by J_MCU daughtercard,100 mA current-limited output; no external backfeed,YES,DESIGN_LIMIT_FOR_REVIEW
+12V_SYS,reserved prototype auxiliary,12.0,0.0,0.2,0.25,Reserved interface ceiling; no present load,PSM-01 0.50 A protected branch,YES,RESERVED_NO_LOAD
+24V_IN,J_AO 8-channel 0-10 V module electronics,24.0,0.12,0.2,0.25,High-impedance voltage outputs; external loads excluded,0.35 A daughtercard branch protection required,YES,DESIGN_LIMIT_FOR_REVIEW
+24V_IN,J_PWRMOD external power-module electronics,24.0,0.25,0.4,0.5,Prototype module interface ceiling; switched loads use separate supply,0.75 A branch fuse/eFuse required,YES,DESIGN_LIMIT_FOR_REVIEW
+24V_IN,J_SAFE relay-driver electronics,24.0,0.04,0.08,0.1,One 24 V relay/contactor-driver allocation,0.20 A branch protection and flyback on daughtercard,YES,DESIGN_LIMIT_FOR_REVIEW

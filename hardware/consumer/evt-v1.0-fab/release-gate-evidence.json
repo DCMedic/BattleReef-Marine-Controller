@@ -53,18 +53,21 @@
       "approval_date": null
     },
     "production_connectors": {
-      "status": "BLOCKED_LOAD_HARNESS_AND_FIRST_ARTICLE_EVIDENCE",
+      "status": "DESIGN_COMPLETE_READY_FOR_REVIEW_AND_FIRST_ARTICLE",
       "verification_file": "connector-production-verification.csv",
       "architecture_decision": "EVT uses an external official Raspberry Pi CM5 IO Board revision 2 independently powered at J11 by an approved 5 V/5 A USB-C PD source. J_CM5 is signal-only and maps exactly to CM5IO J8. A custom integrated CM5 carrier is deferred to a later revision.",
       "precheck_file": "CONNECTOR_PRECHECK.md",
-      "critical_finding": "The unsafe J_CM5 5 V/external 3.3 V paths remain removed. The generator now implements the Molex 90130-1116 2.54 mm footprint/body and manufacturer column numbering; the exact 16-wire mapping to CM5IO J8 is controlled. CM5IO is separately powered at J11, so its 5 A envelope is outside BRMC 5V_SYS. Main-logic, safety, isolation, Rear-I/O, analog, 0-10 V and service loads/protection remain unquantified, and unshrouded CM5IO J8 requires first-article orientation controls.",
+      "critical_finding": "The unsafe J_CM5 5 V/external 3.3 V paths remain removed. The generator implements the gold-plated Molex 90130-1216 footprint/body and exact 16-wire CM5IO J8 map. CM5IO is separately powered at J11. All 13 board connectors now use controlled C-Grid III, KK 254 or Micro-Fit 3.0 production-family geometry; load ceilings, harness gauges/lengths, voltage drop and protection are documented. Unshrouded CM5IO J8 and every board/mate pair still require independent drawing audit and first-article orientation/crimp/access evidence.",
       "connector_count": 13,
       "verified_connector_count": 0,
-      "closure_requires": "Eliminate all HOLD/TBD load rows using a real schematic/netlist and measured startup/steady/transient evidence; release harness drawings and maximum lengths; verify CM5IO J8 orientation and J_CM5 footprint against first-article hardware; then verify all production connector/contact/terminal MPNs, mating access and reviewer evidence."
+      "closure_requires": "Qualified electrical/layout reviewer approval; independent manufacturer-drawing-to-footprint audit for all 13 connectors; first-article MPN, pin-1, keying, mating-access, crimp and continuity evidence; CM5IO J8 orientation proof before power; measured startup/steady/transient current compliance. PSM-01 and daughtercard schematics remain separate approval objects."
     },
     "independent_review": {
-      "status": "AWAITING_QUALIFIED_REVIEWER",
+      "status": "PACKAGE_ISSUED_AWAITING_QUALIFIED_REVIEWER",
       "checklist_file": "independent-review-checklist.csv",
+      "review_package": "BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf",
+      "interconnect_drawing": "BRMC_Consumer_EVT_Backplane_v1.0_Interconnect_Schematic.pdf",
+      "review_index": "BRMC_Consumer_v1.0_Engineer_Review_Index.md",
       "reviewer": null,
       "qualifications": null,
       "review_date": null,

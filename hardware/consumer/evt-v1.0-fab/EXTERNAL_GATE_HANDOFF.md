@@ -1,47 +1,79 @@
 # BRMC Consumer EVT v1.0 external gate handoff
 
-This handoff applies only to the 220 × 78 mm modular prototype backplane in this directory. It is not an approval of the integrated main logic/power or rear precision-analog boards.
+Revision C — 2026-09-03
+Status: **ENGINEERING REVIEW RELEASE — NOT FABRICATION AUTHORITY**
 
-## Current disposition
+This handoff applies only to the 220 × 78 mm passive modular backplane, its
+prototype CM5IO endpoint/harness interfaces and its CNC 6061 enclosure-base
+candidate. It does not approve absent PSM-01, daughtercard, rear-I/O or custom
+CM5-carrier designs.
 
-The KiCad 9.0.9 CI baseline at commit `7ee8025b67477b51e17edb343fe79a6a2d4b94c9` passed with zero DRC violations, zero unconnected pads, and zero footprint errors. The archived artifact contains six copper layers, separate PTH/NPTH drills, IPC-D-356, position data, STEP, and checksums. That automated result does not close the four external gates below.
+## Handoff package
 
-| Gate | Current disposition | Required evidence |
+Begin with `BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf` and
+`BRMC_Consumer_v1.0_Engineer_Review_Index.md`. Review the exact successful CI
+artifact named `BRMC-Consumer-EVT-v1.0-Fabrication`; its `SHA256SUMS` file is
+the configuration record.
+
+| Gate | Handoff disposition | Evidence required to close |
 | --- | --- | --- |
-| Six-hole enclosure fit | Blocked | Released enclosure base/boss CAD or drawing and signed coordinate/tolerance comparison |
-| Fabricator stackup/DFM | Awaiting vendor | Returned stackup, DFM report, job/quote ID, named approval, and date |
-| Production connectors | Blocked | All 13 board and mate MPNs plus drawing/footprint/orientation verification |
-| Independent review | Awaiting reviewer | Qualified reviewer identity, qualifications, completed checklist, findings, disposition, and date |
+| Item 1 / six-hole enclosure base | Ready for responsible-ME review | signed Rev B drawing/CAD disposition; tolerance-aware populated, harness, thermal and service-access fit record; CNC fabricator acceptance |
+| Fabricator stackup/DFM | Awaiting vendor return | quote/job ID, controlled stackup, DFM report, exceptions disposition, name and date |
+| Item 2 / carrier, loads and harnesses | Ready for qualified-EE review | signed review; all actions closed; first-article CM5IO/connector orientation and harness inspection; measured EVT currents within limits |
+| Backplane connectors | Design frozen for review | drawing-to-footprint audit for 13 connectors plus first-article MPN, keying, crimp and access evidence |
+| Independent electrical/layout review | Awaiting reviewer | qualified reviewer, completed checklist, report, approving disposition and date |
 
-## Mechanical finding
+## Item 1 mechanical datum
 
-The PCB datum is the upper-left corner of the rectangular Edge.Cuts outline. The board pattern is three columns by two rows:
+The controlled PCB is 220.000 × 78.000 mm. With PCB center as datum, the six
+3.20 mm NPTH axes are X = −103/0/+103 mm and Y = −32/+32 mm. In the enclosure
+datum of the Rev B base candidate they are:
 
-| Hole | X (mm) | Y (mm) | Drill (mm) |
-| --- | ---: | ---: | ---: |
-| H1 | 7.000 | 7.000 | 3.200 |
-| H2 | 110.000 | 7.000 | 3.200 |
-| H3 | 213.000 | 7.000 | 3.200 |
-| H4 | 7.000 | 71.000 | 3.200 |
-| H5 | 110.000 | 71.000 | 3.200 |
-| H6 | 213.000 | 71.000 | 3.200 |
+| Hole | PCB-centered X,Y (mm) | Enclosure X,Y (mm) |
+| --- | ---: | ---: |
+| H1 | −103, −32 | −103, 25.5 |
+| H2 | 0, −32 | 0, 25.5 |
+| H3 | +103, −32 | +103, 25.5 |
+| H4 | −103, +32 | −103, 89.5 |
+| H5 | 0, +32 | 0, 89.5 |
+| H6 | +103, +32 | +103, 89.5 |
 
-The available v0.7 base-shell STEP has no standoff or hole geometry, and the v0.7 220 × 78 PCB STEP is an unperforated envelope. The six bosses found in the v0.2 assembly are for a different 245 × 60 mm PCB: their local pattern is X = 6.5/122.5/238.5 mm and Y = 5/52 mm. That obsolete pattern is not valid evidence for this board.
+The CNC 6061-T6 base candidate defines integral OD 10.00 ±0.10 mm bosses,
+height 5.00 ±0.05 mm, support plane Z = 8.00 ±0.05 mm, M3×0.5-6H blind threads,
+minimum 4.30 mm full thread, M3×6 screws with washers and nominal 3.9 mm
+engagement. The drawing controls datum/tolerance details. The nominal supplied-
+assembly check contains 114 boss-to-nonbase-solid comparisons with zero
+positive-volume intersections. Since the supplied assembly omits populated
+module, harness, thermal and service-tool solids, the signed tolerance-aware
+final fit review remains mandatory.
 
-Mechanical closure must compare all six nominal axes and the complete tolerance stack, including the 3.2 mm PCB holes, boss/insert location, screw clearance, standoff height, component/copper clearance, and enclosure collision/access. A bounding-box fit alone is not acceptance.
+## Item 2 electrical boundary
 
-## Fabricator return
+The CM5 endpoint is an official Raspberry Pi CM5 IO Board revision 2 powered
+independently at J11 by an official 27 W USB-C supply. J_CM5 is signal-only and
+maps exactly to J8 as recorded in the harness schedule. The 24 V system path is
+limited to 2.5 A; its calculated 1.47 A continuous envelope becomes 1.83 A with
+25% startup/transient margin. HARN-01 is specified as 20 AWG, 105 °C copper;
+the calculated warm 0.5 m loop drop at 2.5 A is 0.101 V (0.42%).
 
-Send the CI manufacturing artifact together with `fabricator-stackup-dfm-request.csv`. The fabricator must identify the exact material/construction it will build, confirm every stated capability, and return its DFM output. Verbal or portal-only “looks good” responses are not controlled evidence; retain a PDF, email export, or signed job record.
+All other power-carrying harnesses have a controlled source/destination, pin
+group, voltage, expected/worst/allowance current, conductor, maximum length,
+warm drop and protection relationship in
+`BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv`. Signal-only DSI, RF,
+GPIO, CAN and RS-485 constructions are controlled separately.
 
-## Connector verification
+## Return instructions
 
-The generated footprints are unkeyed prototype header geometry. `connector-production-verification.csv` intentionally has blank production fields. A connector is not verified until both halves and the real mating direction are frozen against manufacturer drawings and the KiCad geometry is checked pad-by-pad.
+- Fabricator: complete `fabricator-stackup-dfm-request.csv` and return a
+  controlled stackup/DFM record tied to the reviewed commit and artifact.
+- Electrical/layout reviewer: complete `independent-review-checklist.csv`,
+  attach findings, and sign the PDF disposition page after all blocking actions
+  are closed.
+- Mechanical reviewer: mark up/sign the base drawing and attach the tolerance-
+  aware final fit/interference record.
+- Build/test owner: retain connector/harness travelers, first-article photos or
+  inspection data, and startup/steady/transient/fault current captures.
 
-## Independent review
-
-The reviewer must be independent of the layout author and demonstrably experienced with multi-layer low-voltage power, embedded buses, PCB layout, and DFM. They must receive the exact CI artifact and complete `independent-review-checklist.csv`. Fabricator DFM is not a substitute for electrical/layout review.
-
-## Release rule
-
-Do not change either authorization flag to `true` until the evidence is committed, independently reproducible, and the post-approval KiCad/manufacturing workflow passes for the exact released commit.
+Do not change either authorization flag to `true` until the evidence is
+committed and the post-approval KiCad/manufacturing workflow passes for the
+exact released revision.

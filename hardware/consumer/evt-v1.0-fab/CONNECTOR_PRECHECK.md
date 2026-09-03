@@ -1,37 +1,49 @@
-# Production connector architecture precheck
+# Production connector implementation precheck
 
-Decision: use mixed keyed/latching connector families, subject to the actual module load budget, harness drawings, and enclosure insertion/access check.
+Document status: **DESIGN FROZEN FOR INDEPENDENT REVIEW — FIRST-ARTICLE
+VERIFICATION REQUIRED**
 
-## Candidate families
+All 13 backplane connector references now use controlled production-family
+geometry in the deterministic PCB generator. Exact board MPNs, mating housings,
+contacts, ratings, footprints, pin-1 conventions and evidence references are in
+`connector-production-verification.csv`.
 
-- Signal/module harnesses: Molex Micro-Lock Plus 2.00 mm. The family is polarized and positive-locking, supports 2–42 circuits, and is rated up to 4.7 A by family configuration. Candidate single-row parts are 3.4 A/contact; candidate dual-row parts are 2.8 A/contact. Production current must be derated using the applicable product specification, wire gauge, circuit loading, and enclosure temperature.
-- Power-bearing harnesses: Molex Micro-Fit 3.0, right-angle through-hole, polarized and positive-locking. The selected candidate header series is listed at 8.5 A/contact and 600 V, but the actual harness current remains subject to terminal, wire, temperature, circuit-loading, and mating-cycle derating.
-- Service/debug: Micro-Lock Plus 8-circuit is the current candidate because all eight existing nets are used. A Tag-Connect conversion would require a controlled pinout/fixture change rather than a footprint-only substitution.
+## Implemented families
 
-Primary manufacturer references:
+- `J_CM5`, `J_MCU`: Molex C-Grid III 2.54 mm through-hole headers. `J_CM5`
+  uses gold-plated 90130-1216 and is signal-only; `J_MCU` uses 90130-1224.
+- `J_PH`, `J_ORP`, `J_EC`, `J_TEMP`, `J_CAN`, `J_485`, `J_SAFE`, `J_SVC`:
+  Molex KK 254 single-row friction-lock headers sized to the controlled pinout.
+- `J_PWR`, `J_AO`, `J_PWRMOD`: Molex Micro-Fit 3.0 right-angle through-hole
+  headers with exact 3.00 mm dual-row pitch and manufacturer-pattern 3.00 mm
+  PCB locator holes.
 
-- <https://www.molex.com/en-us/products/connectors/wire-to-board-connectors/micro-lock-plus-connectors>
-- <https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/505/505575/5055750590_sd.pdf>
-- <https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/220/220201/2202010471_sd.pdf>
-- <https://www.molex.com/en-us/products/connectors/wire-to-board-connectors/micro-fit-connectors>
-- <https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/430/43045/430450921_sd.pdf>
+Header headline current ratings are not used as harness design current. The
+load schedule applies the lower contact/terminal/wire/branch limit and records
+the derated interface allowance for each circuit.
 
-## CM5 power correction and remaining hold
+## CM5 correction
 
-The prior `J_CM5` assigned one pin to `5V_SYS` and one pin to `3V3_SYS`. The candidate 16-circuit dual-row Micro-Lock Plus header is rated 2.8 A maximum per contact before application derating. Raspberry Pi documents a CM5 5 V / 5 A input capability and requires all six 5 V input pins on the used 100-pin connector to be connected. It also defines CM5 3.3 V as an output and prohibits externally powered pins while CM5 is off. The former single 5 V contact/0.20 mm escape and external 3.3 V assignment were therefore unsafe and have been removed from the deterministic generator.
+The obsolete single-contact CM5 power concept is removed. The EVT CM5 and CM5IO
+are powered only through CM5IO J11. J_CM5 maps sixteen signal/return contacts to
+CM5IO revision-2 J8; J8 5 V and 3V3 contacts are deliberately not fitted. The
+PCB and validator reject any backplane power rail on J_CM5.
 
-Official Raspberry Pi reference: <https://www.raspberrypi.com/documentation/computers/compute-module.html#compute-module-5-io-board>
+Because CM5IO J8 is unshrouded, the 40-circuit housing key does not alone prove
+orientation. The first harness requires a 100% pin-to-pin continuity test,
+adjacent-short test, red pin-1 marking, keyed strain relief, and reviewer-witnessed
+first mating before power is applied.
 
-`J_CM5` is signal-only, with pins 1, 2, 15 and 16 assigned to GND. The generated PCB carries an explicit `J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11` marking, and source validation rejects any reintroduction of a power rail at this connector. The EVT endpoint is the official CM5 IO Board revision 2, independently powered at J11.
+## Remaining approval work
 
-The J_CM5 footprint is corrected to the 2.54 mm Molex C-Grid III 90130-1116 pattern/body envelope with manufacturer column numbering. Mating-harness and CM5IO J8 first-article orientation remain on HOLD because the CM5IO THD-20-R header is unshrouded. See `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md`.
+The independent reviewer must compare every pad/drill/body/courtyard/pin-1
+detail with the cited manufacturer drawing and record the result. The first
+article must verify:
 
-## Orientation and mis-mating
+- actual board and mating MPN markings;
+- contact and crimp compatibility with the released conductor gauge;
+- polarization, pin-1, insertion direction and cross-mating controls;
+- latch, bend-radius, pull/service and enclosure-wall access; and
+- continuity, isolation and absence of unintended power at CM5IO J8.
 
-The proposed Micro-Fit power candidates are right-angle parts intended to mate toward the nearest board edge. The Micro-Lock signal candidates are provisionally vertical/top-entry. Neither orientation is frozen until the released enclosure CAD and module/harness endpoints are assembled in 3D.
-
-Polarization prevents a housing from being rotated into its mate; it does not necessarily prevent two same-family harnesses with the same circuit count from being cross-connected. Final harness control must prevent cross-mating by keyed variants where available, unique circuit counts or families, constrained branch lengths, and durable function/pin-1 labels. Color alone is not treated as poka-yoke.
-
-## No-footprint rule
-
-No candidate is to be placed into the generator until its exact manufacturer land pattern, keepout, height, board edge relationship, mating direction, terminal/wire selection, and application current are verified. A generic pitch-equivalent footprint is not acceptable.
+These are controlled review/inspection actions, not missing design assumptions.

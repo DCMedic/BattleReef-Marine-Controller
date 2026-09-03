@@ -16,13 +16,24 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate KiCad project
         run: |
+          python3 -m pip install --disable-pip-version-check reportlab==4.4.3
           python3 hardware/consumer/evt-v1.0-fab/generate_brmc_evt.py
+          python3 hardware/consumer/evt-v1.0-fab/generate_engineering_review_package.py
           python3 hardware/consumer/evt-v1.0-fab/validate_brmc_evt.py
           git diff --exit-code -- \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_dru \
-            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Netlist.csv \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Interconnect_Schematic.pdf \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Power_Budget.csv \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf \
+            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Engineer_Review_Index.md \
+            hardware/consumer/evt-v1.0-fab/connector-production-verification.csv
       - name: Install KiCad
         run: |
           sudo apt-get update
@@ -40,6 +51,9 @@ jobs:
           cp "$SRC/$STEM.kicad_pcb" "$FAB/$STEM.kicad_pcb"
           cp "$SRC/$STEM.kicad_pro" "$FAB/$STEM.kicad_pro"
           cp "$SRC/$STEM.kicad_dru" "$FAB/$STEM.kicad_dru"
+          cp "$SRC/generate_brmc_evt.py" "$FAB/generate_brmc_evt.py"
+          cp "$SRC/generate_engineering_review_package.py" "$FAB/generate_engineering_review_package.py"
+          cp "$SRC/validate_brmc_evt.py" "$FAB/validate_brmc_evt.py"
           cp "$SRC/${STEM}_Pinout.csv" "$FAB/${STEM}_Pinout.csv"
           cp "$SRC/README.md" "$FAB/README.md"
           cp "$SRC/release-status.json" "$FAB/release-status.json"
@@ -56,6 +70,12 @@ jobs:
           cp "$SRC/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv" "$FAB/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv"
           cp "$SRC/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md" "$FAB/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md"
           cp "$SRC/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv" "$FAB/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv"
+          cp "$SRC/BRMC_Consumer_v1.0_Power_Budget.csv" "$FAB/BRMC_Consumer_v1.0_Power_Budget.csv"
+          cp "$SRC/BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv" "$FAB/BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv"
+          cp "$SRC/${STEM}_Netlist.csv" "$FAB/${STEM}_Netlist.csv"
+          cp "$SRC/${STEM}_Interconnect_Schematic.pdf" "$FAB/${STEM}_Interconnect_Schematic.pdf"
+          cp "$SRC/BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf" "$FAB/BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf"
+          cp "$SRC/BRMC_Consumer_v1.0_Engineer_Review_Index.md" "$FAB/BRMC_Consumer_v1.0_Engineer_Review_Index.md"
           python3 - <<'PY'
           from pathlib import Path
           import pcbnew
