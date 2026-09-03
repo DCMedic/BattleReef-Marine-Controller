@@ -31,20 +31,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y kicad
           kicad-cli version
+      - name: Prepare and fill fabrication source
+        run: |
+          FAB=hardware/consumer/evt-v1.0-fab/fab
+          SRC=hardware/consumer/evt-v1.0-fab
+          STEM=BRMC_Consumer_EVT_Backplane_v1.0
+          mkdir -p "$FAB"
+          cp "$SRC/$STEM.kicad_pcb" "$FAB/$STEM.kicad_pcb"
+          cp "$SRC/$STEM.kicad_pro" "$FAB/$STEM.kicad_pro"
+          cp "$SRC/$STEM.kicad_dru" "$FAB/$STEM.kicad_dru"
+          cp "$SRC/${STEM}_Pinout.csv" "$FAB/${STEM}_Pinout.csv"
+          cp "$SRC/README.md" "$FAB/README.md"
+          cp "$SRC/release-status.json" "$FAB/release-status.json"
+          python3 - <<'PY'
+          from pathlib import Path
+          import pcbnew
+
+          board_path = Path("hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
+          board = pcbnew.LoadBoard(str(board_path))
+          pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+          pcbnew.SaveBoard(str(board_path), board)
+          PY
       - name: Validate PCB
         run: |
-          mkdir -p hardware/consumer/evt-v1.0-fab/fab
           set +e
           kicad-cli pcb drc --severity-all --exit-code-violations \
             -o hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0_DRC.rpt \
-            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+            hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
           rc=$?
           cat hardware/consumer/evt-v1.0-fab/fab/BRMC_Consumer_EVT_Backplane_v1.0_DRC.rpt || true
           exit $rc
       - name: Export fabrication files
         run: |
           FAB=hardware/consumer/evt-v1.0-fab/fab
-          PCB=hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb
+          PCB="$FAB/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb"
           mkdir -p "$FAB/gerbers" "$FAB/drill"
           kicad-cli pcb export gerbers -o "$FAB/gerbers" "$PCB"
           kicad-cli pcb export drill --excellon-separate-th -o "$FAB/drill" "$PCB"
@@ -52,14 +72,6 @@ jobs:
           kicad-cli pcb export ipcd356 -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.ipc" "$PCB"
           kicad-cli pcb export step --board-only --include-tracks --include-pads --include-inner-copper \
             -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.step" "$PCB"
-      - name: Archive source
-        run: |
-          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb hardware/consumer/evt-v1.0-fab/fab/
-          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro hardware/consumer/evt-v1.0-fab/fab/
-          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_dru hardware/consumer/evt-v1.0-fab/fab/
-          cp hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv hardware/consumer/evt-v1.0-fab/fab/
-          cp hardware/consumer/evt-v1.0-fab/README.md hardware/consumer/evt-v1.0-fab/fab/
-          cp hardware/consumer/evt-v1.0-fab/release-status.json hardware/consumer/evt-v1.0-fab/fab/
       - name: Validate fabrication package
         run: |
           FAB=hardware/consumer/evt-v1.0-fab/fab
