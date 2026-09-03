@@ -40,7 +40,7 @@ jobs:
           kicad-cli pcb export gerbers -o "$FAB/gerbers" "$PCB"
           kicad-cli pcb export drill --excellon-separate-th -o "$FAB/drill" "$PCB"
           kicad-cli pcb export pos --format csv --units mm -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0_positions.csv" "$PCB"
-          kicad-cli pcb export ipc356 -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.ipc" "$PCB"
+          kicad-cli pcb export ipcd356 -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.ipc" "$PCB"
           kicad-cli pcb export step --board-only --include-tracks --include-pads --include-inner-copper             -o "$FAB/BRMC_Consumer_EVT_Backplane_v1.0.step" "$PCB"
       - name: Archive source
         run: |
