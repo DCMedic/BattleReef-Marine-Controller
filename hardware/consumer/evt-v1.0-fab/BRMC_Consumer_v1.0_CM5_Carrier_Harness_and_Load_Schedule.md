@@ -1,166 +1,198 @@
-# BRMC Consumer v1.0 CM5 carrier, harness and load schedule
+# BRMC Consumer v1.0 CM5 carrier, harness, and load schedule
 
 Document ID: BRMC-ELEC-EVT-020  
-Revision: A  
+Revision: B
 Date: 2026-09-03  
-Status: **HOLD - INCOMPLETE IMPLEMENTATION**
+Status: **RELEASE CANDIDATE - EVT ARCHITECTURE FROZEN; SYSTEM LOAD CLOSURE HOLD**
 
 ## Disposition
 
-Item 2 is **OPEN**. This review resolves an unsafe power assignment in the
-current generator and establishes a controlled endpoint/load schedule, but the
-repository does not contain an actual CM5 carrier schematic/layout or a
-released endpoint harness drawing. The v0.9 integrated-carrier definition and
-the v1.0 modular-backplane source are different architectures and cannot be
-treated as one released implementation.
+Item 2 is **OPEN**. The prototype architecture, official CM5 endpoint, exact
+GPIO mapping, signal-only interface, independent CM5 power boundary, and
+proposed conductor constructions are now controlled. The unsafe former CM5
+power assignments and connector-footprint mismatch are corrected in the
+generated PCB. Closure is still prohibited because several non-CM5 loads,
+protection settings, maximum installed harness lengths, production harness
+drawings, mating-orientation inspections, and measured startup/transient data
+do not exist. The companion CSV retains those facts as explicit HOLD rows.
 
-## Sources and applicability
+## Controlled prototype architecture
 
-- Current branch `hardware/consumer/evt-v1.0-fab`: authoritative for the actual
-  generated 220 x 78 EVT backplane.
-- v0.9 EVT BOM, Internal Harness Map and Main PCB preliminary CPL: architecture
-  intent only where not implemented in current KiCad.
-- Raspberry Pi Compute Module 5 datasheet, release 3 / document
-  RP-008180-DS-7, build 2026-06-08: authoritative CM5 electrical interface.
-- Raspberry Pi CM5 IO Board datasheet, RP-008182-DS-2, and official reference
-  design: implementation reference, not BRMC verification evidence.
-- Waveshare 10.1inch DSI LCD (C) product documentation: 5 V load reference.
+For BRMC Consumer EVT v1.0:
 
-Primary references:
+- The compute endpoint is the official Raspberry Pi Compute Module 5 IO Board,
+  revision 2, used as an external bench-EVT carrier. It is not represented as
+  mounted inside the Consumer enclosure.
+- CM5IO is powered independently at J11 by the official Raspberry Pi 27 W USB-C
+  power supply or an electrically equivalent, approved 5 V/5 A USB-PD source.
+  CM5 power does not come from the BRMC 24 V input or `5V_SYS`.
+- The only BRMC-to-CM5IO connection is the 16-conductor, 3.3 V signal harness
+  between backplane J_CM5 and CM5IO J8. Pins 2/4 (+5 V) and 1/17 (+3V3) of J8
+  are deliberately not populated in this harness.
+- CM5IO display, RF, USB, Ethernet, storage, and fan connections remain local
+  to CM5IO. The custom integrated CM5 carrier is deferred to a controlled
+  post-EVT revision and shall not silently inherit this prototype layout.
+
+This boundary prevents a nominal 5 A CM5 envelope plus the display and BRMC
+logic from being assigned to the v0.9 6 A TPSM63606 rail.
+
+## Controlled official sources
+
+| Source | Controlled identification / applicability |
+|---|---|
+| CM5 datasheet | Raspberry Pi RP-008180-DS-7, build 2026-06-08; local source SHA-256 `80070fefd8db6e8abc6e146c8b7b5fb318ba129cc1e28826936d547fde79c863` |
+| CM5IO datasheet | Raspberry Pi RP-008182-DS-2; local source SHA-256 `ca45baa18ff67d39ae58b05454f7ce229451ff077befdea606e7e708ecc83cb1` |
+| CM5IO revision-2 KiCad design ZIP | Raspberry Pi RP-008099-DD-1; SHA-256 `48b14a6757b0edc0ac110331445f35a4212b5ce432bdcec6605c99431b59496b` |
+| Official CM5IO PCB | `CM5IO.kicad_pcb`; SHA-256 `728ec772d1bdf6ff2c9f7a81fd8ff00164c894d002221f522f627ae3f8945026` |
+| Official GPIO schematic sheet | `CM5_GPIO.kicad_sch`; SHA-256 `8ffe39b0224a6934c04516d779c69923ef5c033de557275619377f67e2ea3593` |
+| Current BRMC KiCad generator/PCB | Controls J_CM5 and the 220 x 78 backplane at the evaluated branch commit |
+| v0.9 BOM, harness map, and preliminary CPL | Architecture/load intent only where not implemented in the current KiCad source |
+
+Official references:
 
 - <https://pip-assets.raspberrypi.com/categories/944-raspberry-pi-compute-module-5/documents/RP-008180-DS-7-cm5-datasheet.pdf>
 - <https://pip-assets.raspberrypi.com/categories/1097-raspberry-pi-compute-module-5-io-board/documents/RP-008182-DS-2-cm5io-datasheet.pdf>
-- <https://www.raspberrypi.com/documentation/computers/compute-module.html>
-- <https://www.waveshare.com/wiki/10.1inch_DSI_LCD_(C)>
+- <https://pip.raspberrypi.com/categories/1098-design-files>
+- <https://www.raspberrypi.com/products/compute-module-5-io-board/>
 
-## Actual repository implementation
+## Official CM5IO endpoint definition
 
-| Definition | What it actually contains | Status |
-|---|---|---|
-| v0.9 BOM/CPL | CM5104032 at U10; two Hirose DF40C-100DS-0.4V(51) receptacles J10/J11; preliminary centres X97/X123, Y36 | Architecture intent; no matching KiCad schematic/layout supplied |
-| Current v1.0 KiCad | Generic 2x8, 2.54 mm `J_CM5` on a modular backplane | Not a CM5 carrier or a 200-pin CM5 endpoint |
-| Current change | `J_CM5` is now `CM5_SIGNAL_HARNESS`; pins 1,2,15,16 are GND and pins 3-14 signals; no 5 V, 3.3 V, 12 V or 24 V | Corrected safety state; power remains unimplemented |
+The official design establishes a 160 x 90 mm board. Its four PCB mounting
+holes are 2.7 mm M2.5 clearance holes at `(11,13)`, `(132.5,13)`, `(11,82)`,
+and `(132.5,82)` relative to the lower-left board outline. These dimensions are
+not applied to the Consumer enclosure because the EVT carrier is external.
 
-The earlier `J_CM5` single 5 V contact and 0.20 mm escape were unsuitable for a
-5 A class CM5 feed. Its `3V3_SYS` pin also created an unverified external supply
-path into a CM5 endpoint. Both assignments were removed from the deterministic
-generator and a PCB silkscreen HOLD marking was added. Validation now fails if
-power is reintroduced to `J_CM5`.
+CM5IO J11 is the controlled power endpoint: 5 V, up to 5 A negotiated with a
+compatible USB-C PD source. Alternate back-powering through GPIO J8 is not
+allowed in BRMC EVT. CM5IO USB 3 ports have an approximately 1.2 A combined
+limit per the CM5IO datasheet; USB loads remain inside the separate 5 V/5 A
+carrier envelope.
 
-## CM5 endpoint requirements
+J8 is a Toby Electronics `THD-20-R`, 2 x 20, 2.54 mm vertical through-hole
+header. It is unshrouded. GPIO voltage reference is 3.3 V by the official
+default population. The active BRMC mapping is:
 
-The CM5 has two 100-pin connectors: pins 1-100 on connector 1 and 101-200 on
-connector 2. A BRMC carrier must control at least the following groups.
+| J_CM5 | BRMC signal | CM5IO J8 | CM5/GPIO function |
+|---:|---|---:|---|
+| 1 | GND | 6 | GND |
+| 2 | GND | 9 | GND |
+| 3 | I2C_SCL | 5 | GPIO3 / SCL1 |
+| 4 | I2C_SDA | 3 | GPIO2 / SDA1 |
+| 5 | CM5_TX | 8 | GPIO14 / TXD |
+| 6 | CM5_RX | 10 | GPIO15 / RXD |
+| 7 | CM5_HEARTBEAT | 11 | GPIO17 |
+| 8 | SAFETY_ACK | 13 | GPIO27 |
+| 9 | SPI_SCK | 23 | GPIO11 / SCLK |
+| 10 | SPI_MISO | 21 | GPIO9 / MISO |
+| 11 | SPI_MOSI | 19 | GPIO10 / MOSI |
+| 12 | SPI_CS0 | 24 | GPIO8 / CE0 |
+| 13 | GPIO_AUX0 | 15 | GPIO22 |
+| 14 | GPIO_AUX1 | 16 | GPIO23 |
+| 15 | GND | 20 | GND |
+| 16 | GND | 25 | GND |
 
-| Group | CM5 pins | Requirement / BRMC disposition |
-|---|---|---|
-| Main 5 V input | 77,79,81,83,85,87 | 4.75-5.25 V; connect all six with adequate copper. BRMC implementation absent. |
-| Connector-1 grounds | 1,2,7,8,13,14,22,23,32,33,42,43,52,53,59,60,65,66,71,74,98 | All grounds on a used connector must connect. |
-| 3.3 V output | 84,86 | Output only; 300 mA per pin, 600 mA total. Do not drive from `3V3_SYS`. |
-| 1.8 V output | 88,90 | Output only; 300 mA per pin, 600 mA total. |
-| GPIO reference | 78 | Must connect to CM5 3.3 V or 1.8 V; must not float or be grounded. |
-| RTC battery | 76 | 2.5-3.5 V if used; implementation absent. |
-| Power/control | 92,93,94,96,99 | PWR_Button, nRPIBOOT, CC1, CC2, PMIC_Enable; treatment absent. |
-| Display control | 80,82,97,100 | SCL0, SDA0, CAM_GPIO0/1 as required by selected DSI interface. |
-| GPIO/UART/SPI/I2C | 24-58 as assigned | Exact GPIO-number/function and level mapping is absent; abstract signal names are insufficient. |
-| Ethernet | 3-19 as used | Magnetics, LEDs, fan signals and routing must follow reference design; implementation absent. |
-| USB2/PCIe controls | 101-114 | 90 ohm USB2; PCIe controls and clock required if used; implementation absent. |
-| MIPI0 | 115,117,121,123,127,129,133,135,139,141 | 100 ohm pairs; determine lane count/interface and FFC adapter mapping. |
-| USB3-0 | 128,130,134,136,140,142 | 90 ohm pairs; implementation/use not controlled. |
-| HDMI1 / USB3-1 | 143-171 | Implementation/use not controlled. |
-| MIPI1 / HDMI0 | 170-200 | Implementation/use not controlled. |
-| Connector-2 grounds | 107,108,113,114,119,120,125,126,131,132,137,138,144,150,155,156,161,162,167,168,173,174,179,180,185,186,191,192,197,198 | Connect all if connector 2 is used. |
+All signal conductors are 3.3 V logic or ground. CM5IO J8 pins 1/17 (+3V3),
+2/4 (+5V), and all unlisted pins are no-connect in HARN-CM5-SIG. No voltage
+rail may cross J_CM5.
 
-Differential-pair requirements include 100 ohm MIPI pair matching within
-0.15 mm and 90 ohm USB/PCIe routing as applicable. No signal may be externally
-powered while CM5 is off. Power-up order is 5 V, PMIC_Enable, CM5 3.3 V, then
-CM5 1.8 V.
+## J_CM5 production implementation
 
-The v0.9 Hirose receptacle is not accepted merely because it has 100 contacts.
-The current CM5 datasheet identifies Amphenol 10164227-1001A1RLF for 1.5 mm
-stacking with no underside clearance and 10164227-1004A1RLF for 4.0 mm stacking
-with 2.5 mm underside clearance. BRMC must verify the selected receptacle's
-mechanical compatibility, stack height, land pattern, underside clearance and
-mated orientation against the actual CM5 revision and enclosure.
+The BRMC board connector is now controlled as Molex C-Grid III
+`90130-1116`: 16 circuits, two rows, 2.54 mm pitch, vertical through-hole,
+shrouded/polarized with latch, 1.60 mm PCB, 3 A/contact and 350 V maximum. The
+generator uses manufacturer circuit numbering, 1.00 mm finished holes,
+2.54 mm grids, and the drawing's 22.66 x 9.75 mm nominal maximum body envelope.
+Mating housing is `90142-0016`; the 26/28 AWG female crimp terminal is
+`90119-2121`.
 
-## Power budget
+The CM5IO end uses Molex housing `90142-0040` and the same terminal on J8.
+Because J8 itself is unshrouded, that end is not mechanically keyed by the
+header. The build drawing must require red pin-1 marking, a labelled keyed
+backshell/strain relief, two-person first-article inspection, and 100%
+continuity/short/orientation test before connection. This is a release HOLD,
+not a paperwork-only warning.
 
-Values labelled *source limit* or *design envelope* are not measured BRMC
-consumption. Unknown loads remain unknown; they are not converted into invented
-numbers.
+Manufacturer references:
 
-| Load | Nominal / expected | Worst-case design allowance | Basis and disposition |
+- <https://www.molex.com/en-us/products/part-detail/901301116>
+- <https://www.molex.com/en-us/products/part-detail/901420016>
+- <https://www.molex.com/en-us/products/part-detail/901420040>
+- <https://www.molex.com/en-us/products/part-detail/901192121>
+
+## Power/load boundary and worst-case schedule
+
+| Load/domain | Expected continuous | Calculated worst case/design allowance | Release disposition |
 |---|---:|---:|---|
-| CM5 module | 0.9 A typical operating; 0.4 A typical idle at 5 V | 5.0 A at 5 V | Official typicals and 5 V/5 A input capability; actual BRMC peak not measured |
-| Waveshare 10.1 DSI LCD (C) | approx. 0.52 A at 5 V with backlight | 1.0 A at 5 V provisional | Product documentation plus startup/lot margin; measure EVT peak |
-| Main logic + STM32 safety MCU | unknown | TBD | No implemented schematic/netlist or load model |
-| Isolated CAN/RS-485 domain | unknown | TBD; NXE2S0505MC output is 2 W class | Device population known; operating load and conversion loss not closed |
-| Rear I/O analog circuitry | unknown | TBD | Population known; power pins and harness allocation absent |
-| 0-10 V / low-side outputs | load-dependent | TBD at 24 V | External loads, duty cycle and simultaneous-channel case absent |
-| USB/service/peripherals | configuration-dependent | TBD | Carrier endpoint and peripheral policy absent |
+| CM5 + CM5IO local peripherals | 0.9 A preliminary operating estimate; not qualified | 5.0 A at 5 V (25 W) input envelope; source sized 5 A continuous | Independently supplied at J11; PROVISIONAL until EVT current/inrush capture |
+| CM5IO USB 3 ports | use-dependent | approximately 1.2 A combined limit, included in the 5 A carrier envelope | Local CM5IO load; no BRMC harness current |
+| Waveshare 10.1-inch DSI LCD (C) | approximately 0.52 A at 5 V documented | 1.0 A design allowance | 22 AWG proposal; measure startup/backlight peak |
+| Main logic + STM32 safety MCU | not derivable from supplied netlist | TBD | HOLD; no implemented schematic or rail current model |
+| Isolated CAN/RS-485 | not derivable | TBD; NXE2S0505MC is 2 W class | HOLD; operating load/conversion loss absent |
+| Rear I/O and analog | not derivable | TBD | HOLD; actual endpoint rail/pin allocation absent |
+| 0-10 V / low-side outputs | load and simultaneity dependent | TBD at 24 V | HOLD; external loads and duty cycle absent |
+| Service/debug interfaces | configuration dependent | TBD | HOLD; permanent versus fixture-only endpoint not frozen |
+| 24 V source | load dependent | 2.5 A continuous adapter limit, 60 W | Wire can be sized; system sufficiency/eFuse settings remain HOLD |
 
-The known CM5 design envelope (5.0 A) plus provisional display allocation
-(1.0 A) already consumes the full 6 A rating of the v0.9 TPSM63606 before main
-logic, isolated interfaces, Rear I/O, conversion loss, startup margin or
-transient margin. The v0.9 single 6 A `5V_MAIN` architecture is therefore **not
-approved as a worst-case system supply**. Closure requires either a measured,
-qualified lower system envelope with controlled peripheral limits or a revised
-power tree with separate/greater-capacity protected rails and validated copper,
-thermal and transient performance.
+The schedule intentionally does not synthesize a false total from component
+names. A BOM without an implemented schematic, actual rail connections,
+operating modes, external loads, and protection settings cannot establish
+worst-case simultaneous current.
 
-The 24 V source is a frozen 60 W / 2.5 A adapter. Its 2.5 A rating caps external
-continuous input, but it does not prove eFuse settings, wire/contact temperature,
-inrush behaviour or downstream simultaneous-load sufficiency.
+## Wire gauge and voltage drop
 
-## Wire selection and voltage drop
+Warm-copper voltage drop uses `Vdrop = 2 x L x I x R20 x 1.25` for a supply
+and return pair. Resistance values are 20 AWG 0.03331 ohm/m, 22 AWG 0.05296
+ohm/m, and 26 AWG 0.1339 ohm/m.
 
-Copper voltage-drop calculations use conductor resistance at 20 C and a 1.25
-resistance multiplier for a conservative warm-harness estimate. Formula:
-
-`Vdrop = 2 x length x current x resistance_per_metre x 1.25`.
-
-| Path | Candidate max one-way length | Design current | Candidate conductors | Warm Vdrop | Status |
+| Harness | Maximum one-way length | Design current | Controlled proposal | Warm drop | Disposition |
 |---|---:|---:|---|---:|---|
-| HARN-01 24 V input | 0.50 m | 2.5 A | 2 x 20 AWG stranded Cu, 105 C | 0.104 V (0.43%) | PROVISIONAL; 18 AWG is not required by current/voltage-drop calculation, but may be retained for robustness after terminal/route review |
-| HARN-04 display 5 V | 0.50 m | 1.0 A | 2 x 22 AWG stranded Cu, 105 C | 0.066 V (1.32%) | PROVISIONAL; verify display connector and measured inrush |
-| Dedicated CM5 5 V candidate | 0.30 m | 5.0 A total | 2 x 20 AWG 5 V + 2 x 20 AWG GND, 2.5 A/conductor, 105 C | 0.062 V (1.23%) | HOLD; connector, source, eFuse and carrier absent |
+| HARN-01 24 V input | 0.50 m | 2.5 A | 2 x 20 AWG stranded Cu, 105 C | 0.104 V, 0.43% | PROVISIONAL; 18 AWG is not electrically required, but connector/eFuse/temperature-rise validation remains |
+| HARN-04 display 5 V | 0.50 m | 1.0 A | 2 x 22 AWG stranded Cu, 105 C | 0.066 V, 1.32% | PROVISIONAL; verify connector and measured inrush |
+| HARN-CM5-SIG | 0.30 m | signal only | 16 x 26 AWG stranded Cu, 105 C | not a power-drop path | PROVISIONAL; required by common terminal range and test controls |
+| CM5IO J11 power | standard PSU lead | 5.0 A | official 27 W USB-C PSU assembly | qualified as a complete PSU/cable assembly, not a BRMC loose-wire harness | PROVISIONAL pending local plug variant and procurement record |
 
-Resistance basis: 20 AWG 0.03331 ohm/m and 22 AWG 0.05296 ohm/m at 20 C.
-These maximum lengths are design proposals, not measured harness routings. If a
-released route exceeds them, recalculate and revise the gauge.
+The earlier 18 AWG 24 V proposal is therefore not inherited. Twenty AWG meets
+the adapter-limited current and voltage-drop target at 0.50 m; 18 AWG may be
+retained only for mechanical robustness or a connector requirement established
+by the released harness drawing.
 
-## Harness disposition
+## Signal-only cable requirements
 
-The companion CSV is the controlled row-level schedule. Summary:
+- CM5 signal: 16 x 26 AWG, 105 C stranded copper, maximum 0.30 m. Route over a
+  ground reference where possible; interleave the four assigned ground returns;
+  keep SPI clock away from raw pH/ORP nodes. Validate I2C capacitance and SPI
+  signal integrity at the released length.
+- Display: Raspberry Pi-compatible 22-pin-to-15-pin MIPI DSI cable/adapter for
+  the selected CM5IO display port and Waveshare orientation. Preserve 100 ohm
+  differential construction; do not substitute discrete wires; minimum bend
+  radius 5 mm pending the cable manufacturer's larger requirement.
+- RF: Raspberry Pi-approved 50 ohm micro-coax and antenna assembly; do not
+  classify it by power-wire AWG. Select the exact cable/antenna/bulkhead MPN and
+  validate antenna clearance at EVT.
+- CAN and RS-485: 120 ohm twisted pair with the released reference/shield,
+  termination, bias, length, and isolation strategy. Keep separated from
+  switching power and raw analog paths.
+- I2C/SPI/UART/service: short ground-referenced signal bundles; establish
+  maximum length from interface timing/capacitance rather than ampacity.
 
-| Harness | Construction | Status / reason |
-|---|---|---|
-| HARN-01 | Two power conductors; proposed 20 AWG stranded Cu 105 C | PROVISIONAL; M12-to-board pin map, contact rating, length and eFuse settings not controlled |
-| HARN-02 | Power conductors sized separately; impedance/ground-aware signal bundle for SPI/I2C/control | HOLD; 20-pin pinout, load, connectors and length absent |
-| HARN-03 | 15-position 1.0 mm FFC plus verified 22-pin/CM5 MIPI adapter as required | HOLD; exact DSI pin map, orientation and adapter absent; min bend radius 5 mm from v0.9 map |
-| HARN-04 | Two-wire 22 AWG candidate | PROVISIONAL; connector MPN, load-switch/eFuse and inrush test absent |
-| HARN-05 | Raspberry Pi approved 50 ohm micro-coax/antenna assembly | HOLD; cable/antenna MPN, bulkhead and RF/enclosure validation absent |
-| CAN | 120 ohm twisted pair, controlled shield/reference strategy | HOLD; endpoints/length/termination not released |
-| RS-485 | 120 ohm twisted pair, controlled shield/reference strategy | HOLD; endpoints/length/bias/termination not released |
-| I2C/SPI/UART | Ground-referenced short internal signal harness; no power-current AWG selection | HOLD; exact endpoint pin mapping and max lengths absent |
-
-## Required closure evidence
-
-Item 2 may be changed to CLOSED only when:
-
-- the architecture decision is frozen: integrated CM5 J10/J11 carrier or a
-  separately identified CM5 carrier plus signal/power harnesses;
-- the matching KiCad schematic and PCB implement all used CM5 pins, all grounds,
-  GPIO_VREF, sequencing/backfeed protection and differential-pair constraints;
-- every connector/contact/terminal MPN, mating orientation and exact pin map is
-  verified to manufacturer drawings and actual endpoint hardware;
-- maximum harness lengths and routing are released;
-- measured startup, steady-state and transient loads close the power budget,
-  regulator/eFuse/copper/thermal margins and voltage-drop limits;
-- the complete CSV has no HOLD/TBD rows and an independent qualified reviewer
-  approves the electrical/layout implementation.
-
-## Controlled companion
+## Companion schedule and closure evidence
 
 `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv` is normative for
-row-level pin/load/wire status. Blank or `TBD` entries are intentional blockers.
+connector, pin, load, conductor, voltage-drop, protection, routing, and status.
+`RELEASED_EVT_INTERFACE` means only that the named endpoint mapping is frozen
+for this EVT architecture; it does not authorize fabrication or production.
+
+Item 2 changes to CLOSED only when:
+
+- every HOLD/TBD power row in the CSV has an evidenced maximum load, protection
+  setting, conductor/contact rating, and released maximum length;
+- HARN-CM5-SIG and other applicable production harness drawings freeze terminal
+  cavity numbers, labels, keying/strain relief, length, and 100% test criteria;
+- CM5IO J8 mating orientation and the corrected J_CM5 footprint are verified
+  against first-article hardware and manufacturer drawings;
+- startup, steady-state, shutdown/backfeed, and transient captures close the
+  5 V display/logic and 24 V budgets with thermal and voltage-drop margins;
+- a real schematic/netlist establishes the main-logic, safety, isolation,
+  Rear-I/O, analog, 0-10 V, and service loads; and
+- the independent qualified electrical/layout review approves the implemented
+  evidence. Until then Item 2 and the fabrication release remain OPEN.

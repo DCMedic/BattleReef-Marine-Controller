@@ -14,7 +14,7 @@
   },
   "gates": {
     "mechanical_mounting": {
-      "status": "BLOCKED_PROVISIONAL_BOSSES_AND_INCOMPLETE_INTERFERENCE_MODEL",
+      "status": "BLOCKED_FINAL_ASSEMBLY_AND_APPROVAL",
       "pcb_datum": "upper-left corner of the 220 x 78 mm Edge.Cuts rectangle",
       "pcb_holes_mm": [
         {"reference": "H1", "x": 7.0, "y": 7.0, "diameter": 3.2},
@@ -29,13 +29,14 @@
         "BRMC_v0.9_Main_PCB_Outline_and_Mounting.dxf: incomplete; only one diameter 3.2 mm circle at PCB-centred (0, +32)",
         "Current v1.0 KiCad generator: six diameter 3.2 mm NPTH axes verified at PCB-centred X=-103/0/+103 and Y=-32/+32",
         "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md: datum transform, nominal collision result and closure blockers",
-        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step and drawing: HOLD candidate only",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE.step and drawing: complete CNC 6061 threaded-boss definition awaiting approval",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv: 114 nominal supplied-solid checks with no positive-volume intersection",
         "BRMC_v0.7_Base_Shell.step: no PCB boss or mounting-hole geometry",
         "BRMC_v0.7_Main_PCB_220x78.step: board envelope only; no holes",
         "BRMC_v0.7_Mechanical_Fit_Interference_Report.csv: envelope fit only",
         "BRMC_Consumer_Prototype_v0.2.step: six bosses belong to a different 245 x 60 mm Main_IO_PCB"
       ],
-      "closure_requires": "Approve material/process, boss/insert/screw/tolerance design and replace the provisional base with a signed released revision; provide populated PCB, connector, harness and thermal solids; then pass and sign the tolerance-aware interference/service-access review.",
+      "closure_requires": "Provide populated PCB/component, connector-mate, harness/bend-radius, thermal and service-tool envelopes; pass and sign the tolerance-aware final interference/service-access review; obtain responsible mechanical engineer and fabricator DFM approval; promote Revision B candidate CAD/drawing to a signed released revision.",
       "approved_enclosure_revision": null,
       "approver": null,
       "approval_date": null,
@@ -52,14 +53,14 @@
       "approval_date": null
     },
     "production_connectors": {
-      "status": "BLOCKED_ELECTRICAL_LOAD_AND_INTERFACE_DEFINITION",
+      "status": "BLOCKED_LOAD_HARNESS_AND_FIRST_ARTICLE_EVIDENCE",
       "verification_file": "connector-production-verification.csv",
-      "architecture_decision": "Mixed keyed/latching families: Micro-Lock Plus candidates for signals and Micro-Fit 3.0 candidates for power-bearing interfaces.",
+      "architecture_decision": "EVT uses an external official Raspberry Pi CM5 IO Board revision 2 independently powered at J11 by an approved 5 V/5 A USB-C PD source. J_CM5 is signal-only and maps exactly to CM5IO J8. A custom integrated CM5 carrier is deferred to a later revision.",
       "precheck_file": "CONNECTOR_PRECHECK.md",
-      "critical_finding": "The unsafe J_CM5 5 V and external 3.3 V pins were removed and validation now holds it signal-only. The actual 200-pin CM5 carrier, dedicated protected 5 V path, exact GPIO mapping and complete load budget remain absent. The known 5 A CM5 envelope plus 1 A display allowance already consumes the v0.9 6 A converter rating before other loads.",
+      "critical_finding": "The unsafe J_CM5 5 V/external 3.3 V paths remain removed. The generator now implements the Molex 90130-1116 2.54 mm footprint/body and manufacturer column numbering; the exact 16-wire mapping to CM5IO J8 is controlled. CM5IO is separately powered at J11, so its 5 A envelope is outside BRMC 5V_SYS. Main-logic, safety, isolation, Rear-I/O, analog, 0-10 V and service loads/protection remain unquantified, and unshrouded CM5IO J8 requires first-article orientation controls.",
       "connector_count": 13,
       "verified_connector_count": 0,
-      "closure_requires": "Freeze integrated-versus-separate CM5 carrier architecture; implement and review all used CM5 pins, grounds, GPIO_VREF, sequencing/backfeed protection and high-speed routing; close measured startup/steady/transient load and harness voltage-drop budgets; then verify all production connector/contact/terminal MPNs, pinouts, footprints, mating access and reviewer evidence."
+      "closure_requires": "Eliminate all HOLD/TBD load rows using a real schematic/netlist and measured startup/steady/transient evidence; release harness drawings and maximum lengths; verify CM5IO J8 orientation and J_CM5 footprint against first-article hardware; then verify all production connector/contact/terminal MPNs, mating access and reviewer evidence."
     },
     "independent_review": {
       "status": "AWAITING_QUALIFIED_REVIEWER",

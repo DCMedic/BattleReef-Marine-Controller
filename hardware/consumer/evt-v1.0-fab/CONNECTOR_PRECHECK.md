@@ -22,9 +22,9 @@ The prior `J_CM5` assigned one pin to `5V_SYS` and one pin to `3V3_SYS`. The can
 
 Official Raspberry Pi reference: <https://www.raspberrypi.com/documentation/computers/compute-module.html#compute-module-5-io-board>
 
-`J_CM5` is now signal-only, with pins 1, 2, 15 and 16 assigned to GND. The generated PCB carries an explicit `J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED` marking, and source validation rejects any reintroduction of a power rail at this connector.
+`J_CM5` is signal-only, with pins 1, 2, 15 and 16 assigned to GND. The generated PCB carries an explicit `J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11` marking, and source validation rejects any reintroduction of a power rail at this connector. The EVT endpoint is the official CM5 IO Board revision 2, independently powered at J11.
 
-Required disposition: implement and review the actual CM5 carrier and a dedicated protected 5 V path with all CM5 5 V and ground pins, sufficient contacts/copper, sequencing and backfeed control. The present branch contains no such carrier or power interface. See `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md`.
+The J_CM5 footprint is corrected to the 2.54 mm Molex C-Grid III 90130-1116 pattern/body envelope with manufacturer column numbering. Mating-harness and CM5IO J8 first-article orientation remain on HOLD because the CM5IO THD-20-R header is unshrouded. See `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md`.
 
 ## Orientation and mis-mating
 

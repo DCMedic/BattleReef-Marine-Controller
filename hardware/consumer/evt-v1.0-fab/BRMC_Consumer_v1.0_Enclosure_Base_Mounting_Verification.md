@@ -1,44 +1,46 @@
 # BRMC Consumer v1.0 enclosure-base mounting verification
 
 Document ID: BRMC-MECH-EVT-010  
-Revision: A  
+Revision: B
 Date: 2026-09-03  
 Units: millimetres unless stated otherwise  
-Status: **HOLD - NOT RELEASED FOR FABRICATION**
+Status: **RELEASE CANDIDATE - ENGINEERING APPROVAL HOLD**
 
 ## Disposition
 
-Item 1 is **OPEN**. The six-hole coordinate set is confirmed in the current
-KiCad source, but the supplied enclosure base does not contain bosses and the
-v0.9 mounting DXF is incomplete. The controlled package also lacks component,
-connector, harness and thermal solid geometry needed for a final interference
-review. The accompanying STEP and drawing are therefore a traceable
-**PROVISIONAL DESIGN CANDIDATE**, not a released enclosure definition.
+Item 1 is **OPEN**. The selected process and complete six-boss CNC definition
+are now controlled, and the nominal supplied-assembly interference check
+passes. The package is approval-ready but cannot be marked released because
+the controlled assembly does not include populated PCB component bodies,
+connector mates, routed harnesses, thermal hardware, or service-tool
+envelopes. No responsible mechanical-engineer approval or fabricator DFM
+acceptance is present.
 
-## Controlled evidence and source priority
+## Controlled inputs and conflict resolution
 
-1. Current branch generator and generated KiCad PCB at the evaluated commit.
-   These control the actual v1.0 EVT backplane outline and hole references.
+1. Current branch generator and generated KiCad PCB control the v1.0 EVT
+   backplane outline, hole references, and 3.20 mm NPTH definition.
 2. `BRMC_Consumer_v0.8_Exact_Display_Manufacturing_Assembly.step`, SHA-256
-   `1e1f78229c2624be0a0ecc7766795e55c19090104cca487c9a2ebd9da287a810`.
+   `1e1f78229c2624be0a0ecc7766795e55c19090104cca487c9a2ebd9da287a810`,
+   controls the available enclosure/display geometry.
 3. `BRMC_v0.9_Main_PCB_Outline_and_Mounting.dxf`, SHA-256
-   `db5b9649be9386a0024e809063a1d1ceec5d66952b2cd83004b765efaa52687f`.
+   `db5b9649be9386a0024e809063a1d1ceec5d66952b2cd83004b765efaa52687f`,
+   is supporting evidence only. It contains one model-space circle at
+   PCB-centred `(0,+32)`, radius 1.6, with no board outline or other five holes.
 
-The v0.9 DXF declares millimetres but contains only one model-space entity: a
-circle centred at `(0, 32)` with radius 1.6. It contains neither the board
-outline nor the other five holes and cannot independently establish a released
-six-hole pattern. The current deterministic KiCad generator and NPTH output do
-establish all six holes.
+The v0.9 DXF cannot independently establish a six-hole release pattern. The
+current deterministic KiCad source independently confirms all six axes. The
+request's coordinate values are correct, but its H2-H5 naming order differs
+from the current KiCad references; this document preserves the KiCad names.
 
 ## Datum transformation and verified hole axes
 
-PCB datum P is the board centre. Enclosure candidate datums are: A, the
-interior base-floor support surface at Z = 3.0 in the v0.8 assembly; B, the
-enclosure/PCB longitudinal centre plane X = 0; and C, the PCB transverse centre
-plane Y = 57.5. The board underside/support plane is Z = 8.0. Transformation
-from current KiCad coordinates `(Xk, Yk)` to enclosure assembly coordinates is:
+PCB datum P is the board centre. Enclosure datums are A, the exterior bottom
+plane at Z=0; B, the longitudinal centre plane X=0; and C, the transverse
+centre plane Y=57.5. The PCB underside/support plane is Z=8.00. Transform from
+KiCad coordinates `(Xk,Yk)` to enclosure coordinates:
 
-`Xe = Xk - 110; Ye = Yk + 18.5; Ze = 8.0`.
+`Xe = Xk - 110; Ye = Yk + 18.5; Ze = 8.00`.
 
 | Ref | KiCad X | KiCad Y | PCB-centred X | PCB-centred Y | Enclosure X | Enclosure Y |
 |---|---:|---:|---:|---:|---:|---:|
@@ -49,83 +51,74 @@ from current KiCad coordinates `(Xk, Yk)` to enclosure assembly coordinates is:
 | H5 | 110 | 71 | 0 | +32 | 0 | 89.5 |
 | H6 | 213 | 71 | +103 | +32 | +103 | 89.5 |
 
-The coordinate set in the fabrication request is correct, but its H2-H5 label
-assignment is not the label assignment in the authoritative current KiCad
-source. This document preserves the actual KiCad references shown above.
+## Controlled CNC 6061 boss definition
 
-## Candidate boss definition - not approved
+| Characteristic | Controlled release-candidate value |
+|---|---|
+| Base material/process | 6061-T6 aluminum to ASTM B209/B221; CNC-machined integral bosses; no inserts |
+| Boss axes | Enclosure X/Y above; true position diameter 0.20 to A-B-C |
+| Boss outside diameter | 10.00 +/-0.10 |
+| Boss height | 5.00 +/-0.05 above nominal inner floor Z3.00 |
+| PCB support plane | Z=8.00 +/-0.05 to datum A; six tops coplanar within 0.10 |
+| Boss perpendicularity | 0.10 to A over the 5 mm height |
+| PCB hole | diameter 3.20 NPTH, controlled by current KiCad source |
+| Thread | M3 x 0.5-6H blind; full thread depth 4.30 minimum |
+| Tap drill | diameter 2.50 +0.10/-0.00; depth 5.30 +/-0.20 from boss top |
+| Residual base below tap drill | 2.70 nominal to exterior datum A |
+| Screw/washer | M3x6 ISO 7380-1 A4-70 button head; 0.5 mm PA66 or PEEK washer |
+| Screw engagement | 3.9 mm nominal after 1.6 mm PCB and 0.5 mm washer; verify no bottoming |
+| Assembly torque | 0.35 +/-0.05 N.m with marine-compatible anti-seize; confirm during EVT |
+| PCB-to-inner-floor clearance | 5.00 nominal from Z3 floor to Z8 PCB underside |
+| Finish | Type II Class 2 black anodize, sealed, 12-25 micrometres per MIL-PRF-8625; mask threads and identified datum/bond surfaces |
+| General tolerances | ISO 2768-mK; critical dimensions and GD&T above take precedence |
+| Edge/surface requirement | break edges 0.2-0.5; remove burrs; Ra 3.2 micrometres unless noted |
 
-The following values are an engineering candidate needed to expose the design
-decision and support CAD review. They are not inherited released dimensions.
+The STEP represents the nominal 2.50 mm tap-drill cylinder rather than modeled
+helical threads. Drawing 010-BASE-01 controls the M3 thread.
 
-| Characteristic | Candidate value | Proposed tolerance/status |
-|---|---:|---|
-| Boss axes | Enclosure X/Y in table above | true position diameter 0.30 to A-B-C; HOLD |
-| Boss outside diameter | 10.00 | +/-0.20; HOLD |
-| Boss top/support plane | Z = 8.00 | +/-0.10 to A; HOLD |
-| Boss height above inner floor | 5.00 | derived from Z3 floor to Z8 PCB underside; HOLD |
-| PCB hole | diameter 3.20 NPTH | controlled by current KiCad source |
-| Insert candidate | SPIROL 29M3-3.56, item 151032, M3 x 0.5 | HOLD pending material/process approval |
-| Insert pilot | diameter 3.99 | +0.08/-0.00 per insert manufacturer; HOLD |
-| Pilot depth | 4.10 minimum | candidate; bottom must remain closed; HOLD |
-| Insert length | 3.56 nominal | manufacturer value |
-| Screw | M3 x 0.5 | length/head/washer HOLD pending assembly stack |
-| Minimum thread engagement | 3.0 target, not to exceed available insert thread | HOLD pending screw stack |
-| PCB-to-inner-floor clearance | 5.00 nominal | direct v0.8 geometry result |
+## Interference, clearance, and service review
 
-The insert manufacturer's generic guidance recommends boss diameter based on
-insert diameter and host material/process. The package does not control base
-material, moulding/printing process, draft, ribbing, shrink allowance, or
-insertion method. Therefore the boss OD, pilot, tolerance and insert cannot be
-released until those inputs are approved by the enclosure fabricator.
+The generator hash-checks and imports the exact v0.8 assembly, verifies 20
+solids and the base envelope `X=-142.5..142.5`, `Y=0..115`, `Z=0..34`, places
+each OD10 x 5 boss, then calculates intersection volume and minimum distance
+against every one of the 19 non-base solids. The machine-readable report
+contains 114 checks and no positive-volume intersection.
 
-General tolerance proposal for otherwise-undimensioned candidate geometry:
-ISO 2768-mK. This is a proposal only; it is not a substitute for material- and
-process-specific DFM approval.
+Nearest nominal clearances in the supplied geometry are:
 
-Insert reference sources:
-
-- <https://shop.spirol.com/item/series-29-30-short-heat-ultrasonic-insert-metric/series-29-short-heat-ultrasonic-insert-metric/151032>
-- <https://www.spirol.com/resources/white-papers/how-to-design-the-proper-hole-for-heat-ultrasonic-inserts/>
-
-## Interference and clearance check
-
-Six OD10 x 5 boss envelopes were placed on the verified axes and checked
-against all 20 solids in the exact-display assembly. There were no positive
-volume intersections with any non-base solid. The boss tops contact the nominal
-featureless PCB underside at Z8 as intended. Nearest non-penetrating nominal
-distances in the supplied envelope assembly were:
-
-| Boss row | Rear-I/O board | Display carrier | Other displayed/front solids |
+| Boss row | Display carrier | Rear-I/O board | Other supplied solids |
 |---|---:|---:|---:|
-| Y = 25.5 (H1-H3) | 73.7 | 6.084 | 19.461 or greater, excluding touching housing interface |
-| Y = 89.5 (H4-H6) | 9.7 | 66.827 | 17.5 or greater |
+| Y=25.5, H1-H3 | 6.084 | 73.700 | 19.461 or greater, excluding intended enclosure interfaces |
+| Y=89.5, H4-H6 | 66.827 | 9.700 | 17.500 or greater |
 
-This check proves only nominal envelope non-penetration in the supplied v0.8
-assembly. It does **not** prove clearance to component bodies, connector mating
-volumes, cable bend radii, harness clips, heatsinks/thermal interfaces, screw
-heads/tools, or service paths because those solids are absent. The Main PCB
-solid itself is a 220 x 78 x 1.6 rectangular block with no holes or components.
+These results confirm the bosses do not collide with the supplied enclosure,
+display carrier, display solids, rear-I/O envelope, or walls at nominal
+geometry. They cannot confirm missing objects. In particular, the supplied
+Main PCB is a featureless 220 x 78 x 1.6 solid without holes/components, and
+there are no connector-mate, harness/bend-radius, heatsink, thermal-interface,
+screwdriver-access, or service-removal envelopes. The final tolerance-aware
+assembly check must include them.
 
-## Required closure evidence
+## Release-candidate evidence
 
-Item 1 may be changed to CLOSED only after all of the following exist:
+- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE.step`
+- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_Drawing.pdf`
+- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_dimensions.csv`
+- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv`
+- `generate_mechanical_release_candidate.py`
 
-- responsible mechanical engineer approves the datum scheme, material,
-  process, insert, boss geometry, tolerance and screw stack;
-- fabricator DFM confirms pilot/boss/rib design for the selected material and
-  process;
-- a released component-populated PCB STEP, connector mating envelopes, display
-  carrier, rear I/O, thermal hardware and routed harness envelopes are assembled
-  with the base;
-- tolerance-aware interference, cable routing and service-access review passes;
-- the candidate STEP/drawing is superseded by a signed released revision.
+## Remaining closure evidence
 
-## Candidate artifacts
+Item 1 changes to CLOSED only when:
 
-- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step`
-- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf`
-- `BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv`
-
-These artifacts intentionally contain `PROVISIONAL` in their names and shall
-not be used as released tooling or fabrication authority.
+- the responsible mechanical engineer approves Revision B's datums, CNC
+  process, material, boss/thread/tolerance design, finish, and fastener stack;
+- the enclosure fabricator accepts machinability, tolerances, thread depth,
+  anodize masking, and sealing/warpage controls;
+- a controlled assembly supplies populated PCB/component bodies, production
+  connector mates, routed harnesses/bend radii, thermal hardware, and service
+  tool/removal envelopes;
+- the tolerance-aware final interference/service-access check passes and is
+  signed; and
+- the candidate STEP and 010-BASE-01 drawing are promoted to a signed RELEASED
+  revision. Until then they shall not be used as fabrication authority.

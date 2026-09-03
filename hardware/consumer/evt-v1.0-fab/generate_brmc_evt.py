@@ -19,19 +19,24 @@ class Board:
     def netid(self,n):
         if n not in self.nets: self.nets[n]=len(self.nets)
         return self.nets[n]
-    def add_header(self,ref,val,x,y,pins,pitch=2.54,rows=1):
+    def add_header(self,ref,val,x,y,pins,pitch=2.54,rows=1,numbering="rows",bodyw=None,bodyh=None):
         coords=[]
         if rows==1:
             n=len(pins); x0=-(n-1)*pitch/2
             for i,net in enumerate(pins): coords.append((str(i+1),x0+i*pitch,0,net))
-            bodyw=max(4,n*pitch); bodyh=5
+            bodyw=bodyw or max(4,n*pitch); bodyh=bodyh or 5
         else:
             assert len(pins)%2==0
             n=len(pins)//2; x0=-(n-1)*pitch/2
-            for row in range(2):
+            if numbering == "columns":
                 for i in range(n):
-                    idx=row*n+i; coords.append((str(idx+1),x0+i*pitch,(row-.5)*pitch,pins[idx]))
-            bodyw=max(4,n*pitch); bodyh=7
+                    for row in range(2):
+                        idx=i*2+row; coords.append((str(idx+1),x0+i*pitch,(row-.5)*pitch,pins[idx]))
+            else:
+                for row in range(2):
+                    for i in range(n):
+                        idx=row*n+i; coords.append((str(idx+1),x0+i*pitch,(row-.5)*pitch,pins[idx]))
+            bodyw=bodyw or max(4,n*pitch); bodyh=bodyh or 7
         fp={"ref":ref,"val":val,"x":x,"y":y,"coords":coords,"bodyw":bodyw,"bodyh":bodyh}; self.fps.append(fp)
         for num,dx,dy,net in coords:
             self.pads.append({"ref":ref,"num":num,"x":x+dx,"y":y+dy,"net":net}); self.netid(net)
@@ -164,6 +169,11 @@ class Board:
              f'    (property "Value" "{fp["val"]}" (at 0 4 0) (layer "F.Fab") hide (uuid "{uid()}") (effects (font (size 1 1) (thickness 0.15))))',
              '    (attr board_only)',
              f'    (fp_rect (start {q(-fp["bodyw"]/2)} {q(-fp["bodyh"]/2)}) (end {q(fp["bodyw"]/2)} {q(fp["bodyh"]/2)}) (stroke (width 0.2) (type default)) (fill none) (layer "{body_layer}") (uuid "{uid()}"))']
+        if fp["ref"] == "J_CM5":
+            out += [
+                f'    (fp_rect (start {q(-fp["bodyw"]/2)} {q(-fp["bodyh"]/2)}) (end {q(fp["bodyw"]/2)} {q(fp["bodyh"]/2)}) (stroke (width 0.10) (type default)) (fill none) (layer "F.Fab") (uuid "{uid()}"))',
+                f'    (fp_rect (start {q(-fp["bodyw"]/2-0.25)} {q(-fp["bodyh"]/2-0.25)}) (end {q(fp["bodyw"]/2+0.25)} {q(fp["bodyh"]/2+0.25)}) (stroke (width 0.05) (type default)) (fill none) (layer "F.CrtYd") (uuid "{uid()}"))',
+            ]
         for num,dx,dy,net in fp["coords"]:
             shape="rect" if num=="1" else "circle"
             out.append(f'    (pad "{num}" thru_hole {shape} (at {q(dx)} {q(dy)}) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net {self.netid(net)} "{net}") (pinfunction "{net}") (pintype "passive") (uuid "{uid()}"))')
@@ -203,11 +213,11 @@ class Board:
                   '  )']
         s.append(')'); Path(path).write_text('\n'.join(s),encoding='utf-8')
 b=Board("BRMC_EVT_Backplane",220,78)
-# J_CM5 is deliberately signal-only.  The earlier single-contact 5 V feed and
-# externally-driven 3.3 V contact conflicted with the CM5 supply envelope and
-# power-sequencing/backfeed requirements.  A separate, keyed CM5 carrier power
-# interface remains a release HOLD until its endpoint and load are controlled.
-b.add_header("J_CM5","CM5_SIGNAL_HARNESS",25,68,["GND","GND","I2C_SCL","I2C_SDA","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","GPIO_AUX0","GPIO_AUX1","GND","GND"],rows=2)
+# J_CM5 is deliberately signal-only. The EVT endpoint is the independently
+# powered official CM5 IO Board revision 2 at J8; no power rail crosses this
+# harness. Molex 90130-1116 uses column-wise circuit numbering, a 2.54 mm grid,
+# 1.00 mm finished holes and a 22.66 x 9.75 mm maximum nominal body envelope.
+b.add_header("J_CM5","MOLEX_90130-1116_CM5IO_SIGNAL",25,68,["GND","GND","I2C_SCL","I2C_SDA","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","GPIO_AUX0","GPIO_AUX1","GND","GND"],rows=2,numbering="columns",bodyw=22.66,bodyh=9.75)
 b.add_header("J_MCU","STM32G0B1_CORE",75,68,["5V_SYS","GND","3V3_SYS","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","I2C_SCL","I2C_SDA","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","CAN_TX","CAN_RX","RS485_TX","RS485_RX","RS485_DE","SAFETY_ENABLE","TEMP_DATA","SWDIO","SWCLK","NRST","GND"],rows=2)
 b.add_header("J_PH","ATLAS_EZO_PH_ISO",125,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","PH_OFF"])
 b.add_header("J_ORP","ATLAS_EZO_ORP_ISO",150,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","ORP_OFF"])
@@ -224,7 +234,7 @@ b.add_header("J_SVC","SERVICE_DEBUG",205,10,["3V3_SYS","GND","SWDIO","SWCLK","NR
 # intent (three columns by two rows) in the 220 x 78 mm coordinate system.
 for ref,x,y in [("H1",7,7),("H2",110,7),("H3",213,7),("H4",7,71),("H5",110,71),("H6",213,71)]:
     b.add_mounting_hole(ref,x,y)
-b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED",35,60.5,0.8)
+b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11",35,60.5,0.8)
 b.route_bus(); b.write(OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro").write_text(json.dumps({"board":{},"boards":[],"cvpcb":{},"erc":{},"libraries":{},"meta":{"filename":"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro","version":1},"net_settings":{"classes":[]},"pcbnew":{},"schematic":{},"text_variables":{"PRODUCT":"BRMC Consumer","REV":"1.0-EVT"}},indent=2),encoding="utf-8")
 rows=[]

@@ -89,8 +89,23 @@ def validate_source() -> None:
     require(not {row["Net"] for row in cm5} & {"5V_SYS", "3V3_SYS", "24V_IN", "12V_SYS"},
             "J_CM5 must remain signal-only; dedicated CM5 carrier power is not implemented")
     require(sum(row["Net"] == "GND" for row in cm5) == 4, "J_CM5 requires four signal-return contacts")
-    require("J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED" in pcb,
-            "mandatory J_CM5 power-hold marking missing")
+    require("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11" in pcb,
+            "mandatory independent CM5IO power-boundary marking missing")
+    expected_cm5 = {
+        "1": "GND", "2": "GND", "3": "I2C_SCL", "4": "I2C_SDA",
+        "5": "CM5_TX", "6": "CM5_RX", "7": "CM5_HEARTBEAT",
+        "8": "SAFETY_ACK", "9": "SPI_SCK", "10": "SPI_MISO",
+        "11": "SPI_MOSI", "12": "SPI_CS0", "13": "GPIO_AUX0",
+        "14": "GPIO_AUX1", "15": "GND", "16": "GND",
+    }
+    require({row["Pin"]: row["Net"] for row in cm5} == expected_cm5,
+            "J_CM5 controlled CM5IO signal mapping changed")
+    require('"MOLEX_90130-1116_CM5IO_SIGNAL"' in pcb,
+            "J_CM5 Molex 90130-1116 value missing")
+    require('(fp_rect (start -11.330 -4.875) (end 11.330 4.875)' in pcb,
+            "J_CM5 90130-1116 body envelope missing")
+    require('(fp_rect (start -11.580 -5.125) (end 11.580 5.125)' in pcb,
+            "J_CM5 90130-1116 courtyard missing")
 
     status = json.loads(read(ROOT / "release-status.json"))
     evidence = json.loads(read(ROOT / "release-gate-evidence.json"))
@@ -147,17 +162,23 @@ def validate_source() -> None:
     read(ROOT / "independent-review-checklist.csv")
     mechanical = read(ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md")
     require("Item 1 is **OPEN**" in mechanical, "mechanical evidence must retain Item 1 hold")
-    require((ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step").stat().st_size > 50_000,
-            "provisional enclosure STEP is missing or unexpectedly small")
-    drawing = ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf"
+    require((ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE.step").stat().st_size > 50_000,
+            "CNC 6061 enclosure STEP is missing or unexpectedly small")
+    drawing = ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_Drawing.pdf"
     require(drawing.is_file() and drawing.stat().st_size > 4_000,
-            "provisional enclosure drawing is missing or unexpectedly small")
-    with (ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv").open(
+            "CNC 6061 enclosure drawing is missing or unexpectedly small")
+    with (ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_dimensions.csv").open(
             newline="", encoding="utf-8") as handle:
         dimensions = list(csv.DictReader(handle))
-    require(len(dimensions) == 6, "expected six provisional enclosure boss rows")
+    require(len(dimensions) == 6, "expected six CNC enclosure boss rows")
     require({row["Reference"] for row in dimensions} == {f"H{i}" for i in range(1, 7)},
-            "provisional boss schedule does not contain H1-H6")
+            "CNC boss schedule does not contain H1-H6")
+    with (ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv").open(
+            newline="", encoding="utf-8") as handle:
+        interference = list(csv.DictReader(handle))
+    require(len(interference) == 114, "expected 114 boss-to-supplied-solid interference checks")
+    require(all(row["Result"] == "PASS" and float(row["Intersection_volume_mm3"]) <= 1e-6
+                for row in interference), "supplied-assembly boss interference check failed")
 
     cm5_schedule = read(ROOT / "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md")
     require("Item 2 is **OPEN**" in cm5_schedule, "CM5 evidence must retain Item 2 hold")
@@ -165,8 +186,12 @@ def validate_source() -> None:
             newline="", encoding="utf-8") as handle:
         load_rows = list(csv.DictReader(handle))
     require(len(load_rows) >= 30, "CM5/harness load schedule is unexpectedly incomplete")
-    require(all(row["Status"] in {"HOLD", "PROVISIONAL"} for row in load_rows),
+    require(all(row["Status"] in {"HOLD", "PROVISIONAL", "RELEASED_EVT_INTERFACE"} for row in load_rows),
             "load schedule contains an unsupported released row")
+    require(any(row["Status"] == "HOLD" for row in load_rows),
+            "Item 2 may not close while required load evidence is absent")
+    require(sum(row["Status"] == "RELEASED_EVT_INTERFACE" for row in load_rows) >= 18,
+            "CM5IO EVT endpoint mapping is not fully controlled")
 
 
 def validate_checksums(fab: Path) -> None:
@@ -203,9 +228,10 @@ def validate_fabrication(fab: Path) -> None:
         "CONNECTOR_PRECHECK.md",
         "independent-review-checklist.csv",
         "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md",
-        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step",
-        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf",
-        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE.step",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_Drawing.pdf",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_dimensions.csv",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_CNC6061_RELEASE_CANDIDATE_interference.csv",
         "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md",
         "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv",
         "README.md",

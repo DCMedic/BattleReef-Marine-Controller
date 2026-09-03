@@ -1,0 +1,7 @@
+Reference,Enclosure_X_mm,Enclosure_Y_mm,PCB_center_X_mm,PCB_center_Y_mm,Boss_OD_mm,Boss_height_mm,Support_Z_mm,Thread,Full_thread_depth_min_mm,Tap_drill_diameter_mm,Tap_drill_depth_mm,PCB_hole_mm,Axis_position_tolerance_mm,Status
+H1,-103.00,25.50,-103.00,-32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
+H2,0.00,25.50,0.00,-32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
+H3,103.00,25.50,103.00,-32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
+H4,-103.00,89.50,-103.00,32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
+H5,0.00,89.50,0.00,32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
+H6,103.00,89.50,103.00,32.00,10.00 +/-0.10,5.00 +/-0.05,8.00 +/-0.05,M3x0.5-6H,4.30,2.50 +0.10/-0.00,5.30 +/-0.20,3.20 NPTH,diameter 0.20 to A|B|C,RELEASE_CANDIDATE_AWAITING_APPROVAL
