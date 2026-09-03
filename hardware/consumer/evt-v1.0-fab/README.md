@@ -12,10 +12,10 @@ Power nets use short 0.20 mm connector escape neck-downs where required by the 2
 
 ## Automated gates
 
-The GitHub workflow regenerates the committed KiCad sources, rejects source drift, runs KiCad 9 DRC, exports Gerber/drill/position/IPC-D-356/STEP outputs, verifies the output set and checksums every artifact. A successful run proves the checked backplane artifact passed those automated gates for that commit.
+The GitHub workflow regenerates the committed KiCad sources, rejects source drift, fills the L2/L5 GND zones in an archived manufacturing copy, runs KiCad 9 DRC on that filled board, exports Gerber/drill/position/IPC-D-356/STEP outputs, verifies the L2/L5 Gerbers contain filled GND-plane regions, verifies the complete output set, and checksums every artifact. A successful run proves the checked backplane artifact passed those automated gates for that commit.
 
 ## Release holds
 
-`release-status.json` is authoritative for release disposition. The fabrication release remains held until the reserved L2/L5 ground-reference pours are implemented and checked, the mounting pattern is mechanically checked against the enclosure/standoffs, the fabricator returns an approved stackup/DFM response, connector MPNs and mating orientation are verified for the intended EVT harness, and an independent qualified electrical/layout review is recorded.
+`release-status.json` is authoritative for release disposition. The L2/L5 ground-reference planes are now implemented and covered by the source, KiCad DRC, and Gerber-content gates. Fabrication release remains held until the mounting pattern is mechanically checked against the enclosure/standoffs, the fabricator returns an approved stackup/DFM response, connector MPNs and mating orientation are verified for the intended EVT harness, and an independent qualified electrical/layout review is recorded.
 
 The pH/ORP guarded analog section, conductivity AFE, power-stage validation, EMC/ESD, thermal, and ingress-protection gates remain outside this backplane package and retain the holds from the controlled v0.8/v0.9 work.

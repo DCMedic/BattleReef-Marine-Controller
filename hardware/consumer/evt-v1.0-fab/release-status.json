@@ -1,15 +1,17 @@
 {
   "artifact": "BRMC Consumer EVT v1.0 modular backplane",
   "scope": "engineering EVT bare-board fabrication candidate",
-  "automated_gate": "pending CI validation for this revision",
+  "automated_gate": "CI-enforced; accept only artifacts from a successful BRMC Hardware EVT CI run for the matching source revision",
   "fabrication_release_authorized": false,
   "commercial_production_authorized": false,
   "open_gates": [
-    "implementation and validation of continuous GND pours on reserved L2 and L5",
     "mechanical confirmation of the six-hole mounting pattern against enclosure standoffs",
     "fabricator stackup and DFM approval",
     "production connector MPN, footprint, and mating-orientation verification",
     "independent qualified electrical and PCB-layout review"
+  ],
+  "completed_engineering_gates": [
+    "continuous GND reference planes implemented on L2 and L5 and checked in KiCad DRC and Gerber package validation"
   ],
   "retained_system_holds": [
     "pH/ORP guarded analog coupon validation",
