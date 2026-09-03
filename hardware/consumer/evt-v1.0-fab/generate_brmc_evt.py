@@ -97,6 +97,17 @@ class Board:
             for p in plist:
                 if p["ref"] in {"J_PH","J_ORP","J_EC","J_TEMP"}:
                     ly="In3.Cu"; ex=p["x"]
+                elif p["ref"] in {"J_PWR","J_AO","J_PWRMOD"}:
+                    columns={"J_PWR":3,"J_AO":2,"J_PWRMOD":4}[p["ref"]]
+                    pin=int(p["num"])
+                    if pin <= columns:
+                        # The second-row plated pad is directly above every
+                        # first-row pad. Escape laterally before turning into
+                        # the board so no trace crosses that paired pad.
+                        ly="In3.Cu"
+                        ex=p["x"]+(2.50 if pin == columns else (-2.50 if pin == 1 else -1.50))
+                    else:
+                        ly="F.Cu"; ex=p["x"]
                 elif p["y"] > 68.5:
                     ly="F.Cu"; ex=p["x"]+1.25
                 elif p["y"] > 67.5:
@@ -174,7 +185,7 @@ class Board:
                     # paired second-row pad directly above it, so escape left
                     # before turning toward the trunk; a direct vertical trace
                     # would short across that plated pad.
-                    branch_x=p["x"]-2.50 if p["ref"] in {"J_PWR","J_AO","J_PWRMOD"} else p["x"]
+                    branch_x=e["ex"] if p["ref"] in {"J_PWR","J_AO","J_PWRMOD"} else p["x"]
                     if abs(branch_x-p["x"])>1e-6:
                         self.segs.append((p["x"],p["y"],branch_x,p["y"],style["bus"],"B.Cu",nid))
                     self.segs.append((branch_x,p["y"],branch_x,by,style["bus"],"B.Cu",nid))
@@ -190,7 +201,7 @@ class Board:
             self.segs.append((min(vxs),by,max(vxs),by,style["bus"],"B.Cu",nid))
     def _fp(self,fp):
         q=lambda v:f'{v:.3f}'
-        ref_y=-6.0 if fp["ref"] == "J_CM5" else (-5.0 if fp["y"] >= 60 else 5.0)
+        ref_y=-6.5 if fp["kind"] == "cgrid" else (-5.0 if fp["y"] >= 60 else 5.0)
         body_layer="F.Fab" if fp["kind"] == "microfit_ra" else "F.SilkS"
         body_y0=-10.420 if fp["kind"] == "microfit_ra" else -fp["bodyh"]/2
         body_y1=-0.510 if fp["kind"] == "microfit_ra" else fp["bodyh"]/2
@@ -218,10 +229,7 @@ class Board:
             columns=len(fp["coords"])//2
             span=(columns-1)*3.0
             left=-span/2-3.575; right=span/2+3.575
-            out += [
-                f'    (fp_rect (start {q(left-0.110)} -10.530) (end {q(right+0.110)} -0.400) (stroke (width 0.12) (type default)) (fill none) (layer "F.SilkS") (uuid "{uid()}"))',
-                f'    (fp_rect (start {q(left-0.505)} -10.920) (end {q(right+0.505)} 2.750) (stroke (width 0.05) (type default)) (fill none) (layer "F.CrtYd") (uuid "{uid()}"))',
-            ]
+            out.append(f'    (fp_rect (start {q(left-0.505)} -10.920) (end {q(right+0.505)} 2.750) (stroke (width 0.05) (type default)) (fill none) (layer "F.CrtYd") (uuid "{uid()}"))')
             locator_xs=[0.0] if columns < 4 else [-2.35,2.35]
             for locator_x in locator_xs:
                 out.append(f'    (pad "" np_thru_hole circle (at {q(locator_x)} -5.820) (size 3.000 3.000) (drill 3.000) (layers "*.Cu" "*.Mask") (uuid "{uid()}"))')
@@ -276,18 +284,18 @@ b.add_header("J_PH","MOLEX_22-23-2051_ATLAS_EZO_PH_ISO",125,68,["5V_SYS","GND","
 b.add_header("J_ORP","MOLEX_22-23-2051_ATLAS_EZO_ORP_ISO",150,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","ORP_OFF"],bodyw=15.24,bodyh=5.08,kind="kk254")
 b.add_header("J_EC","MOLEX_22-23-2051_ATLAS_EZO_EC_ISO",175,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","EC_OFF"],bodyw=15.24,bodyh=5.08,kind="kk254")
 b.add_header("J_TEMP","MOLEX_22-23-2041_DIGITAL_TEMP",198,68,["3V3_SYS","GND","TEMP_DATA","TEMP_AUX"],bodyw=12.70,bodyh=5.08,kind="kk254")
-b.add_header("J_PWR","MOLEX_43045-0600_POWER_HARNESS",25,10,["24V_IN","GND","5V_SYS","GND","12V_SYS","GND"],pitch=3.0,rows=2,numbering="rows",bodyw=13.15,bodyh=9.91,kind="microfit_ra")
+b.add_header("J_PWR","MOLEX_43045-0600_POWER_HARNESS",25,11.5,["24V_IN","GND","5V_SYS","GND","12V_SYS","GND"],pitch=3.0,rows=2,numbering="rows",bodyw=13.15,bodyh=9.91,kind="microfit_ra")
 b.add_header("J_CAN","MOLEX_22-23-2061_ISO_CAN_FD_MODULE",52,10,["5V_SYS","GND","CAN_TX","CAN_RX","CAN_H","CAN_L"],bodyw=17.78,bodyh=5.08,kind="kk254")
 b.add_header("J_485","MOLEX_22-23-2071_ISO_RS485_MODULE",83,10,["5V_SYS","GND","RS485_TX","RS485_RX","RS485_DE","RS485_A","RS485_B"],bodyw=20.32,bodyh=5.08,kind="kk254")
-b.add_header("J_AO","MOLEX_43045-0400_MODBUS_0_10V_8CH",120,10,["24V_IN","GND","RS485_A","RS485_B"],pitch=3.0,rows=2,numbering="rows",bodyw=10.15,bodyh=9.91,kind="microfit_ra")
-b.add_header("J_PWRMOD","MOLEX_43045-0800_POWER_MODULE_BUS",150,10,["24V_IN","GND","CAN_H","CAN_L","RS485_A","RS485_B","SAFETY_ENABLE","GND"],pitch=3.0,rows=2,numbering="rows",bodyw=16.15,bodyh=9.91,kind="microfit_ra")
+b.add_header("J_AO","MOLEX_43045-0400_MODBUS_0_10V_8CH",120,11.5,["24V_IN","GND","RS485_A","RS485_B"],pitch=3.0,rows=2,numbering="rows",bodyw=10.15,bodyh=9.91,kind="microfit_ra")
+b.add_header("J_PWRMOD","MOLEX_43045-0800_POWER_MODULE_BUS",150,11.5,["24V_IN","GND","CAN_H","CAN_L","RS485_A","RS485_B","SAFETY_ENABLE","GND"],pitch=3.0,rows=2,numbering="rows",bodyw=16.15,bodyh=9.91,kind="microfit_ra")
 b.add_header("J_SAFE","MOLEX_22-23-2041_SAFETY_RELAY_DRIVE",174,10,["SAFETY_ENABLE","GND","24V_IN","GND"],bodyw=12.70,bodyh=5.08,kind="kk254")
 b.add_header("J_SVC","MOLEX_22-23-2081_SERVICE_DEBUG",195,10,["3V3_SYS","GND","SWDIO","SWCLK","NRST","CM5_TX","CM5_RX","GND"],bodyw=22.86,bodyh=5.08,kind="kk254")
 # Six symmetric M3 clearance holes reproduce the v0.9 main-board mounting
 # intent (three columns by two rows) in the 220 x 78 mm coordinate system.
 for ref,x,y in [("H1",7,7),("H2",110,7),("H3",213,7),("H4",7,71),("H5",110,71),("H6",213,71)]:
     b.add_mounting_hole(ref,x,y)
-b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11",35,60.5,0.8)
+b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",70,3,1.0); b.add_text("No mains voltage on PCB",70,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11",35,60.5,0.8)
 b.route_bus(); b.write(OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro").write_text(json.dumps({"board":{},"boards":[],"cvpcb":{},"erc":{},"libraries":{},"meta":{"filename":"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro","version":1},"net_settings":{"classes":[]},"pcbnew":{},"schematic":{},"text_variables":{"PRODUCT":"BRMC Consumer","REV":"1.0-EVT"}},indent=2),encoding="utf-8")
 rows=[]
