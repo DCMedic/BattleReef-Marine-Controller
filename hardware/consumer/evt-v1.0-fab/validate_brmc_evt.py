@@ -136,6 +136,7 @@ def validate_source() -> None:
 
     read(ROOT / "EXTERNAL_GATE_HANDOFF.md")
     read(ROOT / "fabricator-stackup-dfm-request.csv")
+    read(ROOT / "CONNECTOR_PRECHECK.md")
     read(ROOT / "independent-review-checklist.csv")
 
 
@@ -170,6 +171,7 @@ def validate_fabrication(fab: Path) -> None:
         "EXTERNAL_GATE_HANDOFF.md",
         "fabricator-stackup-dfm-request.csv",
         "connector-production-verification.csv",
+        "CONNECTOR_PRECHECK.md",
         "independent-review-checklist.csv",
         "README.md",
         f"drill/{STEM}-PTH.drl",

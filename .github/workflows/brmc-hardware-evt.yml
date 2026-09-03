@@ -47,6 +47,7 @@ jobs:
           cp "$SRC/EXTERNAL_GATE_HANDOFF.md" "$FAB/EXTERNAL_GATE_HANDOFF.md"
           cp "$SRC/fabricator-stackup-dfm-request.csv" "$FAB/fabricator-stackup-dfm-request.csv"
           cp "$SRC/connector-production-verification.csv" "$FAB/connector-production-verification.csv"
+          cp "$SRC/CONNECTOR_PRECHECK.md" "$FAB/CONNECTOR_PRECHECK.md"
           cp "$SRC/independent-review-checklist.csv" "$FAB/independent-review-checklist.csv"
           python3 - <<'PY'
           from pathlib import Path

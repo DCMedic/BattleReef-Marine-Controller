@@ -21,3 +21,5 @@ The GitHub workflow regenerates the committed KiCad sources, rejects source drif
 The pH/ORP guarded analog section, conductivity AFE, power-stage validation, EMC/ESD, thermal, and ingress-protection gates remain outside this backplane package and retain the holds from the controlled v0.8/v0.9 work.
 
 `release-gate-evidence.json` is the machine-readable external-gate record. `EXTERNAL_GATE_HANDOFF.md` explains the exact evidence needed to close it; the fabricator, connector, and independent-review CSV files are controlled return forms. Blank approval fields are intentional and must not be completed without source evidence from the named external party or responsible engineer.
+
+`CONNECTOR_PRECHECK.md` records the selected mixed-family candidate architecture and the rejected-as-drawn CM5 power path. Candidate MPNs are not production approvals and have not been substituted into the PCB generator.

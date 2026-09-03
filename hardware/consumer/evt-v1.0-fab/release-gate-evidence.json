@@ -3,10 +3,10 @@
   "artifact": "BRMC Consumer EVT v1.0 modular backplane",
   "evaluated_utc": "2026-09-03",
   "validated_ci_baseline": {
-    "source_commit": "7ee8025b67477b51e17edb343fe79a6a2d4b94c9",
-    "workflow_run": "https://github.com/DCMedic/BattleReef-Marine-Controller/actions/runs/33701186394",
-    "artifact_id": 9873583460,
-    "artifact_sha256": "359cef7259b0597dd46f328ae313cf28e332b8d05d6a7f11cb19e7957186ca29",
+    "source_commit": "48a1d26b44b204a9c51fab5c30234e649723ebc5",
+    "workflow_run": "https://github.com/DCMedic/BattleReef-Marine-Controller/actions/runs/33702666864",
+    "artifact_id": 9874092636,
+    "artifact_sha256": "f44fc84f9f9b1f1d473b53dfab5fac3432699ac5448fba79f94bdbfd80984569",
     "kicad_version": "9.0.9",
     "drc_violations": 0,
     "unconnected_pads": 0,
@@ -47,11 +47,14 @@
       "approval_date": null
     },
     "production_connectors": {
-      "status": "BLOCKED_INTERFACE_AND_MPN_SELECTION",
+      "status": "BLOCKED_ELECTRICAL_LOAD_AND_INTERFACE_DEFINITION",
       "verification_file": "connector-production-verification.csv",
+      "architecture_decision": "Mixed keyed/latching families: Micro-Lock Plus candidates for signals and Micro-Fit 3.0 candidates for power-bearing interfaces.",
+      "precheck_file": "CONNECTOR_PRECHECK.md",
+      "critical_finding": "J_CM5 is rejected as drawn: one 5 V contact and its 0.20 mm escape cannot be approved for the documented CM5-class 5 A supply envelope.",
       "connector_count": 13,
       "verified_connector_count": 0,
-      "closure_requires": "For every J reference: production board MPN, mating MPN or module interface, manufacturer drawing revision, rated voltage/current, keyed pin-1 orientation, verified KiCad pad/drill/body/courtyard, and reviewer initials."
+      "closure_requires": "Resolve the CM5 power architecture and actual load budget; then for every J reference record the production board MPN, mating MPN or module interface, manufacturer drawing revision, rated voltage/current with application derating, keyed pin-1 orientation, verified KiCad pad/drill/body/courtyard, enclosure mating access, and reviewer initials."
     },
     "independent_review": {
       "status": "AWAITING_QUALIFIED_REVIEWER",

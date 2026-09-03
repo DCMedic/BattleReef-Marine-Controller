@@ -1,14 +1,14 @@
-Ref,Interface,Pin layout,Current prototype geometry,Production board MPN,Mating MPN/module,Manufacturer drawing revision,Voltage rating verified,Current per pin verified,Pad/drill verified,Body/courtyard verified,Keying and pin-1 orientation verified,Mating direction/access verified,Reviewer,Date,Status,Evidence reference
-J_CM5,CM5 IO harness,2x8 / 16 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_MCU,STM32G0B1 core,2x12 / 24 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_PH,Atlas EZO pH isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_ORP,Atlas EZO ORP isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_EC,Atlas EZO EC isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_TEMP,Digital temperature,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_PWR,Power harness,1x6 / 6 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_CAN,Isolated CAN FD module,1x6 / 6 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_485,Isolated RS-485 module,1x7 / 7 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_AO,Modbus 0-10V eight-channel module,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_PWRMOD,BRMC power-module bus,1x8 / 8 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_SAFE,Safety relay drive,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
-J_SVC,Service/debug,1x8 / 8 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,,,,,,,,,,,,OPEN,
+Ref,Interface,Pin layout,Current prototype geometry,Candidate family,Candidate board MPN,Candidate mating housing,Candidate orientation,Production board MPN,Mating MPN/module,Manufacturer drawing revision,Voltage rating verified,Current per pin verified,Pad/drill verified,Body/courtyard verified,Keying and pin-1 orientation verified,Mating direction/access verified,Reviewer,Date,Status,Evidence reference
+J_CM5,CM5 IO harness,2x8 / 16 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm dual row,2202011681,2202002161,Vertical/top entry; SIGNALS ONLY after power split,,,,,,,,,,,,REJECTED_AS_DRAWN,CONNECTOR_PRECHECK.md CM5 power rejection
+J_MCU,STM32G0B1 core,2x12 / 24 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm dual row,2202012481,2202002241,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await module drawing / load / enclosure
+J_PH,Atlas EZO pH isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750560,5055700501,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await module drawing / harness poka-yoke / enclosure
+J_ORP,Atlas EZO ORP isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750560,5055700501,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Same-count PH/ORP/EC cross-mating must be prevented
+J_EC,Atlas EZO EC isolated module,1x5 / 5 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750560,5055700501,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Same-count PH/ORP/EC cross-mating must be prevented
+J_TEMP,Digital temperature,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750460,5055700401,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await endpoint / load / enclosure
+J_PWR,Power harness,1x6 / 6 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Fit 3.0,0430450602,0430250600,Right angle toward lower board edge,,,,,,,,,,,,CANDIDATE,Await source/load/wire/terminal/enclosure
+J_CAN,Isolated CAN FD module,1x6 / 6 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750660,5055700601,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await module drawing / load / enclosure
+J_485,Isolated RS-485 module,1x7 / 7 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750760,5055700701,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await module drawing / load / enclosure
+J_AO,Modbus 0-10V eight-channel module,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Fit 3.0,0430450402,0430250400,Right angle toward lower board edge,,,,,,,,,,,,CANDIDATE,Await module 24V load / wire / terminal / enclosure
+J_PWRMOD,BRMC power-module bus,1x8 / 8 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Fit 3.0,0430450802,0430250800,Right angle toward lower board edge,,,,,,,,,,,,CANDIDATE,Await module 24V load / bus harness / enclosure
+J_SAFE,Safety relay drive,1x4 / 4 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750460,5055700401,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Await relay current / endpoint / enclosure
+J_SVC,Service/debug,1x8 / 8 pins,2.54 mm pitch / 1.00 mm drill / 1.80 mm pad,Molex Micro-Lock Plus 2.00 mm single row,5055750860,5055700801,Vertical/top entry,,,,,,,,,,,,CANDIDATE,Confirm permanent service connector versus fixture-only redesign
