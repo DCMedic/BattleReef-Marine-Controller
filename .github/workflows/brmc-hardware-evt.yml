@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate KiCad project
         run: |
-          python3 -m pip install --disable-pip-version-check reportlab==4.4.3
+          python3 -m pip install --disable-pip-version-check reportlab==4.4.9
           python3 hardware/consumer/evt-v1.0-fab/generate_brmc_evt.py
           python3 hardware/consumer/evt-v1.0-fab/generate_engineering_review_package.py
           python3 hardware/consumer/evt-v1.0-fab/validate_brmc_evt.py
@@ -26,12 +26,10 @@ jobs:
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0.kicad_dru \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Netlist.csv \
-            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_EVT_Backplane_v1.0_Interconnect_Schematic.pdf \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Power_Budget.csv \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Connector_and_Harness_Schedule.csv \
-            hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Electrical_Engineering_Review_Package.pdf \
             hardware/consumer/evt-v1.0-fab/BRMC_Consumer_v1.0_Engineer_Review_Index.md \
             hardware/consumer/evt-v1.0-fab/connector-production-verification.csv
       - name: Install KiCad

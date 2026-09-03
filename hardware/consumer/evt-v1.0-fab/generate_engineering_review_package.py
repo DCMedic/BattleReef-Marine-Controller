@@ -10,7 +10,6 @@ limits; a module must remain below them to be compatible with this prototype.
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -391,11 +390,7 @@ def build_index() -> None:
     ]
     lines = ["# BRMC Consumer v1.0 independent engineering review index", "", f"Revision: {REV}", f"Date: {DATE}", f"Status: **{STATUS}**", "", "This set is complete for review of the modular passive backplane scope. It is not a complete integrated-product design package because PSM-01 and daughtercard implementation schematics/layouts do not exist in the controlled repository.", "", "## Review order", "", "1. Read the electrical engineering review package PDF.", "2. Review the interconnect schematic, pinout and netlist together.", "3. Review the KiCad PCB/rules and the exact successful CI manufacturing artifact.", "4. Review power/connector/harness schedules and mechanical base evidence.", "5. Record findings in the checklist and sign the disposition page only after actions close.", "", "## Controlled files", ""]
     for name in files: lines.append(f"- `{name}`")
-    lines += ["", "## Configuration hashes", ""]
-    for name in files:
-        path = ROOT / name
-        if path.is_file():
-            lines.append(f"- `{hashlib.sha256(path.read_bytes()).hexdigest()}  {name}`")
+    lines += ["", "## Configuration control", "", "Use the `SHA256SUMS` manifest in the successful CI manufacturing artifact for byte-level configuration hashes. The source index intentionally does not pre-compute hashes because text checkout normalization and the PDF runtime can vary by platform."]
     (ROOT / "BRMC_Consumer_v1.0_Engineer_Review_Index.md").write_text("\n".join(lines)+"\n", encoding="utf-8")
 
 
