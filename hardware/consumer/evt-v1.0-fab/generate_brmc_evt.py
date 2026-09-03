@@ -107,9 +107,16 @@ class Board:
         # A through-via intersects every copper layer. Place it in a locally
         # clear slot instead of blindly at the vertical trace x-coordinate.
         def spans(v,y): return v["y0"]-0.001 <= y <= v["y1"]+0.001
+        allocated_vias=[]
         def safe_via(e,vx):
             style=e["style"]
             if vx < style["via"]/2+0.5 or vx > self.w-style["via"]/2-0.5: return False
+            # Hole-to-hole clearance applies even to vias on the same net.
+            # Reserve each chosen drill centre before placing the next one.
+            for other in allocated_vias:
+                min_hole_pitch=style["drill"]/2 + other["drill"]/2 + 0.25
+                if ((vx-other["x"])**2 + (e["by"]-other["y"])**2)**0.5 < min_hole_pitch-1e-6:
+                    return False
             for v in verticals:
                 if v["net"]==e["net"]: continue
                 need=style["via"]/2 + v["width"]/2 + max(style["clear"],v["clear"])
@@ -132,7 +139,9 @@ class Board:
 
         bynet={}
         for e in endpoints:
-            e["vx"]=choose_via(e); bynet.setdefault(e["net"],[]).append(e)
+            e["vx"]=choose_via(e)
+            allocated_vias.append({"x":e["vx"],"y":e["by"],"drill":e["style"]["drill"]})
+            bynet.setdefault(e["net"],[]).append(e)
 
         for n,elist in bynet.items():
             nid=self.netid(n); by=lanes[n]; vxs=[]
