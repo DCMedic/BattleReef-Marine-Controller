@@ -16,13 +16,15 @@ Primary manufacturer references:
 - <https://www.molex.com/en-us/products/connectors/wire-to-board-connectors/micro-fit-connectors>
 - <https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/430/43045/430450921_sd.pdf>
 
-## CM5 power rejection
+## CM5 power correction and remaining hold
 
-`J_CM5` currently assigns one pin to `5V_SYS`, two pins to GND, and fourteen signal/control pins. The candidate 16-circuit dual-row Micro-Lock Plus header is rated 2.8 A maximum per contact before application derating. Raspberry Pi documents the CM5 IO Board power input as 5 V at 5 A, or 5 V at 3 A with the downstream-peripheral limit. The present single 5 V contact and 0.20 mm connector escape therefore cannot be accepted for a CM5-class 5 A interface.
+The prior `J_CM5` assigned one pin to `5V_SYS` and one pin to `3V3_SYS`. The candidate 16-circuit dual-row Micro-Lock Plus header is rated 2.8 A maximum per contact before application derating. Raspberry Pi documents a CM5 5 V / 5 A input capability and requires all six 5 V input pins on the used 100-pin connector to be connected. It also defines CM5 3.3 V as an output and prohibits externally powered pins while CM5 is off. The former single 5 V contact/0.20 mm escape and external 3.3 V assignment were therefore unsafe and have been removed from the deterministic generator.
 
 Official Raspberry Pi reference: <https://www.raspberrypi.com/documentation/computers/compute-module.html#compute-module-5-io-board>
 
-Required disposition: either provide a measured and independently approved lower load for the actual `CM5_IO_HARNESS` endpoint, or revise the interface to separate a dedicated high-current keyed CM5 power connector with sufficient parallel 5 V/GND contacts and copper. The latter is the recommended production direction and changes connector count, pinout, placement, routing, and mechanical access.
+`J_CM5` is now signal-only, with pins 1, 2, 15 and 16 assigned to GND. The generated PCB carries an explicit `J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED` marking, and source validation rejects any reintroduction of a power rail at this connector.
+
+Required disposition: implement and review the actual CM5 carrier and a dedicated protected 5 V path with all CM5 5 V and ground pins, sufficient contacts/copper, sequencing and backfeed control. The present branch contains no such carrier or power interface. See `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md`.
 
 ## Orientation and mis-mating
 

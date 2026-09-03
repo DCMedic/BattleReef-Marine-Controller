@@ -194,7 +194,11 @@ class Board:
                   '  )']
         s.append(')'); Path(path).write_text('\n'.join(s),encoding='utf-8')
 b=Board("BRMC_EVT_Backplane",220,78)
-b.add_header("J_CM5","CM5_IO_HARNESS",25,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","GPIO_AUX0","GPIO_AUX1","3V3_SYS","GND"],rows=2)
+# J_CM5 is deliberately signal-only.  The earlier single-contact 5 V feed and
+# externally-driven 3.3 V contact conflicted with the CM5 supply envelope and
+# power-sequencing/backfeed requirements.  A separate, keyed CM5 carrier power
+# interface remains a release HOLD until its endpoint and load are controlled.
+b.add_header("J_CM5","CM5_SIGNAL_HARNESS",25,68,["GND","GND","I2C_SCL","I2C_SDA","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","GPIO_AUX0","GPIO_AUX1","GND","GND"],rows=2)
 b.add_header("J_MCU","STM32G0B1_CORE",75,68,["5V_SYS","GND","3V3_SYS","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","I2C_SCL","I2C_SDA","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","CAN_TX","CAN_RX","RS485_TX","RS485_RX","RS485_DE","SAFETY_ENABLE","TEMP_DATA","SWDIO","SWCLK","NRST","GND"],rows=2)
 b.add_header("J_PH","ATLAS_EZO_PH_ISO",125,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","PH_OFF"])
 b.add_header("J_ORP","ATLAS_EZO_ORP_ISO",150,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","ORP_OFF"])
@@ -211,7 +215,7 @@ b.add_header("J_SVC","SERVICE_DEBUG",205,10,["3V3_SYS","GND","SWDIO","SWCLK","NR
 # intent (three columns by two rows) in the 220 x 78 mm coordinate system.
 for ref,x,y in [("H1",7,7),("H2",110,7),("H3",213,7),("H4",7,71),("H5",110,71),("H6",213,71)]:
     b.add_mounting_hole(ref,x,y)
-b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9)
+b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED",35,60.5,0.8)
 b.route_bus(); b.write(OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro").write_text(json.dumps({"board":{},"boards":[],"cvpcb":{},"erc":{},"libraries":{},"meta":{"filename":"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro","version":1},"net_settings":{"classes":[]},"pcbnew":{},"schematic":{},"text_variables":{"PRODUCT":"BRMC Consumer","REV":"1.0-EVT"}},indent=2),encoding="utf-8")
 rows=[]

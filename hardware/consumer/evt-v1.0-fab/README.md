@@ -22,4 +22,6 @@ The pH/ORP guarded analog section, conductivity AFE, power-stage validation, EMC
 
 `release-gate-evidence.json` is the machine-readable external-gate record. `EXTERNAL_GATE_HANDOFF.md` explains the exact evidence needed to close it; the fabricator, connector, and independent-review CSV files are controlled return forms. Blank approval fields are intentional and must not be completed without source evidence from the named external party or responsible engineer.
 
-`CONNECTOR_PRECHECK.md` records the selected mixed-family candidate architecture and the rejected-as-drawn CM5 power path. Candidate MPNs are not production approvals and have not been substituted into the PCB generator.
+`CONNECTOR_PRECHECK.md` records the selected mixed-family candidate architecture. The unsafe former `J_CM5` single-contact 5 V feed and external 3.3 V assignment have been removed; `J_CM5` is signal-only and the missing dedicated CM5 carrier power path remains a HOLD. Candidate MPNs are not production approvals and have not been substituted into the PCB generator.
+
+`BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md` and `BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md` record the evidence and blockers for fabrication-release Items 1 and 2. Their accompanying candidate geometry/drawing and machine-readable schedules are explicitly provisional and do not close the external gates.

@@ -14,7 +14,7 @@
   },
   "gates": {
     "mechanical_mounting": {
-      "status": "BLOCKED_NO_MATCHING_ENCLOSURE_DEFINITION",
+      "status": "BLOCKED_PROVISIONAL_BOSSES_AND_INCOMPLETE_INTERFERENCE_MODEL",
       "pcb_datum": "upper-left corner of the 220 x 78 mm Edge.Cuts rectangle",
       "pcb_holes_mm": [
         {"reference": "H1", "x": 7.0, "y": 7.0, "diameter": 3.2},
@@ -25,12 +25,17 @@
         {"reference": "H6", "x": 213.0, "y": 71.0, "diameter": 3.2}
       ],
       "evidence_examined": [
+        "BRMC_Consumer_v0.8_Exact_Display_Manufacturing_Assembly.step: base is boss-free; Main PCB is a featureless 220 x 78 x 1.6 mm solid",
+        "BRMC_v0.9_Main_PCB_Outline_and_Mounting.dxf: incomplete; only one diameter 3.2 mm circle at PCB-centred (0, +32)",
+        "Current v1.0 KiCad generator: six diameter 3.2 mm NPTH axes verified at PCB-centred X=-103/0/+103 and Y=-32/+32",
+        "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md: datum transform, nominal collision result and closure blockers",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step and drawing: HOLD candidate only",
         "BRMC_v0.7_Base_Shell.step: no PCB boss or mounting-hole geometry",
         "BRMC_v0.7_Main_PCB_220x78.step: board envelope only; no holes",
         "BRMC_v0.7_Mechanical_Fit_Interference_Report.csv: envelope fit only",
         "BRMC_Consumer_Prototype_v0.2.step: six bosses belong to a different 245 x 60 mm Main_IO_PCB"
       ],
-      "closure_requires": "Released enclosure base/boss CAD or controlled drawing with the same datum, all six axes, standoff diameter/height, insert specification, and positional tolerances; then a signed tolerance-stack and collision check.",
+      "closure_requires": "Approve material/process, boss/insert/screw/tolerance design and replace the provisional base with a signed released revision; provide populated PCB, connector, harness and thermal solids; then pass and sign the tolerance-aware interference/service-access review.",
       "approved_enclosure_revision": null,
       "approver": null,
       "approval_date": null,
@@ -51,10 +56,10 @@
       "verification_file": "connector-production-verification.csv",
       "architecture_decision": "Mixed keyed/latching families: Micro-Lock Plus candidates for signals and Micro-Fit 3.0 candidates for power-bearing interfaces.",
       "precheck_file": "CONNECTOR_PRECHECK.md",
-      "critical_finding": "J_CM5 is rejected as drawn: one 5 V contact and its 0.20 mm escape cannot be approved for the documented CM5-class 5 A supply envelope.",
+      "critical_finding": "The unsafe J_CM5 5 V and external 3.3 V pins were removed and validation now holds it signal-only. The actual 200-pin CM5 carrier, dedicated protected 5 V path, exact GPIO mapping and complete load budget remain absent. The known 5 A CM5 envelope plus 1 A display allowance already consumes the v0.9 6 A converter rating before other loads.",
       "connector_count": 13,
       "verified_connector_count": 0,
-      "closure_requires": "Resolve the CM5 power architecture and actual load budget; then for every J reference record the production board MPN, mating MPN or module interface, manufacturer drawing revision, rated voltage/current with application derating, keyed pin-1 orientation, verified KiCad pad/drill/body/courtyard, enclosure mating access, and reviewer initials."
+      "closure_requires": "Freeze integrated-versus-separate CM5 carrier architecture; implement and review all used CM5 pins, grounds, GPIO_VREF, sequencing/backfeed protection and high-speed routing; close measured startup/steady/transient load and harness voltage-drop budgets; then verify all production connector/contact/terminal MPNs, pinouts, footprints, mating access and reviewer evidence."
     },
     "independent_review": {
       "status": "AWAITING_QUALIFIED_REVIEWER",

@@ -6,9 +6,9 @@
   "commercial_production_authorized": false,
   "gate_evidence_file": "release-gate-evidence.json",
   "open_gates": [
-    "mechanical confirmation of the six-hole mounting pattern against enclosure standoffs",
+    "mechanical Item 1: six axes mapped, but boss/insert/material/tolerances and complete populated-assembly interference review remain provisional",
     "fabricator stackup and DFM approval",
-    "production connector MPN, footprint, and mating-orientation verification",
+    "electrical Item 2 and production connectors: J_CM5 corrected to signal-only, but actual CM5 carrier/power path, loads, pin maps, MPNs, footprints and mating orientation remain open",
     "independent qualified electrical and PCB-layout review"
   ],
   "completed_engineering_gates": [

@@ -49,6 +49,12 @@ jobs:
           cp "$SRC/connector-production-verification.csv" "$FAB/connector-production-verification.csv"
           cp "$SRC/CONNECTOR_PRECHECK.md" "$FAB/CONNECTOR_PRECHECK.md"
           cp "$SRC/independent-review-checklist.csv" "$FAB/independent-review-checklist.csv"
+          cp "$SRC/BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md" "$FAB/BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md"
+          cp "$SRC/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step" "$FAB/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step"
+          cp "$SRC/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf" "$FAB/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf"
+          cp "$SRC/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv" "$FAB/BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv"
+          cp "$SRC/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md" "$FAB/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md"
+          cp "$SRC/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv" "$FAB/BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv"
           python3 - <<'PY'
           from pathlib import Path
           import pcbnew

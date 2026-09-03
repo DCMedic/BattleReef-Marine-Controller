@@ -84,6 +84,13 @@ def validate_source() -> None:
     require(len(connector_refs) == 13, f"expected 13 connector references, found {len(connector_refs)}")
     pcb_refs = set(re.findall(r'\(property "Reference" "([JH][^"]+)"', pcb))
     require(connector_refs <= pcb_refs, "pinout connector missing from PCB source")
+    cm5 = [row for row in pinout if row["Connector"] == "J_CM5"]
+    require(len(cm5) == 16, "J_CM5 pin count changed")
+    require(not {row["Net"] for row in cm5} & {"5V_SYS", "3V3_SYS", "24V_IN", "12V_SYS"},
+            "J_CM5 must remain signal-only; dedicated CM5 carrier power is not implemented")
+    require(sum(row["Net"] == "GND" for row in cm5) == 4, "J_CM5 requires four signal-return contacts")
+    require("J_CM5 SIGNAL ONLY - CM5 POWER NOT IMPLEMENTED" in pcb,
+            "mandatory J_CM5 power-hold marking missing")
 
     status = json.loads(read(ROOT / "release-status.json"))
     evidence = json.loads(read(ROOT / "release-gate-evidence.json"))
@@ -138,6 +145,28 @@ def validate_source() -> None:
     read(ROOT / "fabricator-stackup-dfm-request.csv")
     read(ROOT / "CONNECTOR_PRECHECK.md")
     read(ROOT / "independent-review-checklist.csv")
+    mechanical = read(ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md")
+    require("Item 1 is **OPEN**" in mechanical, "mechanical evidence must retain Item 1 hold")
+    require((ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step").stat().st_size > 50_000,
+            "provisional enclosure STEP is missing or unexpectedly small")
+    drawing = ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf"
+    require(drawing.is_file() and drawing.stat().st_size > 4_000,
+            "provisional enclosure drawing is missing or unexpectedly small")
+    with (ROOT / "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv").open(
+            newline="", encoding="utf-8") as handle:
+        dimensions = list(csv.DictReader(handle))
+    require(len(dimensions) == 6, "expected six provisional enclosure boss rows")
+    require({row["Reference"] for row in dimensions} == {f"H{i}" for i in range(1, 7)},
+            "provisional boss schedule does not contain H1-H6")
+
+    cm5_schedule = read(ROOT / "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md")
+    require("Item 2 is **OPEN**" in cm5_schedule, "CM5 evidence must retain Item 2 hold")
+    with (ROOT / "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv").open(
+            newline="", encoding="utf-8") as handle:
+        load_rows = list(csv.DictReader(handle))
+    require(len(load_rows) >= 30, "CM5/harness load schedule is unexpectedly incomplete")
+    require(all(row["Status"] in {"HOLD", "PROVISIONAL"} for row in load_rows),
+            "load schedule contains an unsupported released row")
 
 
 def validate_checksums(fab: Path) -> None:
@@ -173,13 +202,24 @@ def validate_fabrication(fab: Path) -> None:
         "connector-production-verification.csv",
         "CONNECTOR_PRECHECK.md",
         "independent-review-checklist.csv",
+        "BRMC_Consumer_v1.0_Enclosure_Base_Mounting_Verification.md",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL.step",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_Drawing.pdf",
+        "BRMC_Consumer_v1.0_Enclosure_Base_6Boss_PROVISIONAL_dimensions.csv",
+        "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.md",
+        "BRMC_Consumer_v1.0_CM5_Carrier_Harness_and_Load_Schedule.csv",
         "README.md",
         f"drill/{STEM}-PTH.drl",
         f"drill/{STEM}-NPTH.drl",
         f"gerbers/{STEM}-job.gbrjob",
     ]
+    binary_suffixes = {".pdf", ".step"}
     for relative in required:
-        read(fab / relative)
+        target = fab / relative
+        if target.suffix.lower() in binary_suffixes:
+            require(target.is_file() and target.stat().st_size > 0, f"missing or empty required file: {target}")
+        else:
+            read(target)
 
     drc = read(fab / f"{STEM}_DRC.rpt")
     require("Found 0 DRC violations" in drc, "DRC violations are not zero")
