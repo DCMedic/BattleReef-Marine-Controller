@@ -17,7 +17,8 @@
     "CNC 6061 threaded-boss enclosure-base release-candidate geometry and controlled drawing generated from the hash-verified v0.8 base",
     "all 13 backplane connectors converted from generic prototypes to controlled Molex production-family geometry",
     "worst-case endpoint allocations, branch protection, harness gauges, maximum lengths and warm voltage-drop calculations issued as Revision C engineering-review evidence",
-    "controlled schematic-equivalent interconnect drawing and machine-readable netlist generated from the same pin table as the KiCad PCB"
+    "controlled schematic-equivalent interconnect drawing and machine-readable netlist generated from the same pin table as the KiCad PCB",
+    "production-connector layout baseline passed the real KiCad 9.0.9 DRC and manufacturing-output workflow with zero DRC violations, zero unconnected pads and zero footprint errors"
   ],
   "retained_system_holds": [
     "pH/ORP guarded analog coupon validation",
