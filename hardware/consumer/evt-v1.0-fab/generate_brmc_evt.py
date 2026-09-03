@@ -150,7 +150,7 @@ class Board:
         q=lambda v:f'{v:.3f}'
         ref_y=-5.0 if fp["y"] >= 60 else 5.0
         body_layer="F.Fab" if fp["y"] < 20 and (fp["x"] < 25 or fp["x"] > 195) else "F.SilkS"
-        out=[f'  (footprint "BRMC:HDR_{fp["ref"]}"','    (layer "F.Cu")',f'    (uuid "{uid()}")',f'    (at {q(fp["x"])} {q(fp["y"])})',
+        out=[f'  (footprint "HDR_{fp["ref"]}"','    (layer "F.Cu")',f'    (uuid "{uid()}")',f'    (at {q(fp["x"])} {q(fp["y"])})',
              f'    (property "Reference" "{fp["ref"]}" (at 0 {q(ref_y)} 0) (layer "F.SilkS") (uuid "{uid()}") (effects (font (size 1 1) (thickness 0.15))))',
              f'    (property "Value" "{fp["val"]}" (at 0 4 0) (layer "F.Fab") hide (uuid "{uid()}") (effects (font (size 1 1) (thickness 0.15))))',
              '    (attr board_only)',
@@ -161,7 +161,7 @@ class Board:
         out.append('  )'); return out
     def _hole(self,hole):
         q=lambda v:f'{v:.3f}'
-        return [f'  (footprint "BRMC:MOUNT_M3_{hole["ref"]}"',
+        return [f'  (footprint "MOUNT_M3_{hole["ref"]}"',
                 '    (layer "F.Cu")',f'    (uuid "{uid()}")',
                 f'    (at {q(hole["x"])} {q(hole["y"])})',
                 f'    (property "Reference" "{hole["ref"]}" (at 0 0 0) (layer "F.Fab") hide (uuid "{uid()}") (effects (font (size 1 1) (thickness 0.15))))',
@@ -198,7 +198,7 @@ b.add_header("J_SVC","SERVICE_DEBUG",205,10,["3V3_SYS","GND","SWDIO","SWCLK","NR
 # intent (three columns by two rows) in the 220 x 78 mm coordinate system.
 for ref,x,y in [("H1",7,7),("H2",110,7),("H3",213,7),("H4",7,71),("H5",110,71),("H6",213,71)]:
     b.add_mounting_hole(ref,x,y)
-b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,5.2,0.9)
+b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",110,3,1.0); b.add_text("No mains voltage on PCB",110,4.5,0.9)
 b.route_bus(); b.write(OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro").write_text(json.dumps({"board":{},"boards":[],"cvpcb":{},"erc":{},"libraries":{},"meta":{"filename":"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro","version":1},"net_settings":{"classes":[]},"pcbnew":{},"schematic":{},"text_variables":{"PRODUCT":"BRMC Consumer","REV":"1.0-EVT"}},indent=2),encoding="utf-8")
 rows=[]

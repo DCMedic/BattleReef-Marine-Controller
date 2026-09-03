@@ -59,7 +59,7 @@
   (net 33 "CAN_L")
   (net 34 "RS485_A")
   (net 35 "RS485_B")
-  (footprint "BRMC:HDR_J_CM5"
+  (footprint "HDR_J_CM5"
     (layer "F.Cu")
     (uuid "13c4c587-d191-59de-a338-e5827664c97a")
     (at 25.000 68.000)
@@ -84,7 +84,7 @@
     (pad "15" thru_hole circle (at 6.350 1.270) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 15 "3V3_SYS") (pinfunction "3V3_SYS") (pintype "passive") (uuid "a1f9fe39-29e6-5843-9282-10007756a7ce"))
     (pad "16" thru_hole circle (at 8.890 1.270) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "cf9a6b8a-753d-5a65-b783-cb0c385f949f"))
   )
-  (footprint "BRMC:HDR_J_MCU"
+  (footprint "HDR_J_MCU"
     (layer "F.Cu")
     (uuid "15217c3d-5e80-5321-9673-8372d233c6aa")
     (at 75.000 68.000)
@@ -117,7 +117,7 @@
     (pad "23" thru_hole circle (at 11.430 1.270) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 25 "NRST") (pinfunction "NRST") (pintype "passive") (uuid "39479dfd-b423-575b-b5cc-e6a635ee8ce0"))
     (pad "24" thru_hole circle (at 13.970 1.270) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "06066d79-a4d9-5d76-b736-0f6dd2b5d2a5"))
   )
-  (footprint "BRMC:HDR_J_PH"
+  (footprint "HDR_J_PH"
     (layer "F.Cu")
     (uuid "0cd224e5-6805-55e1-a99f-8b2c656769b1")
     (at 125.000 68.000)
@@ -131,7 +131,7 @@
     (pad "4" thru_hole circle (at 2.540 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2C_SDA") (pinfunction "I2C_SDA") (pintype "passive") (uuid "ab465919-f449-585a-8a3f-4cbbc2ac7d1f"))
     (pad "5" thru_hole circle (at 5.080 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 26 "PH_OFF") (pinfunction "PH_OFF") (pintype "passive") (uuid "87794f29-7358-5828-a368-52acdfd46ffb"))
   )
-  (footprint "BRMC:HDR_J_ORP"
+  (footprint "HDR_J_ORP"
     (layer "F.Cu")
     (uuid "c38626b4-2383-5f5c-96cb-a33b39ebc0fd")
     (at 150.000 68.000)
@@ -145,7 +145,7 @@
     (pad "4" thru_hole circle (at 2.540 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2C_SDA") (pinfunction "I2C_SDA") (pintype "passive") (uuid "3be623f8-a423-5be7-a9c6-8c830330b191"))
     (pad "5" thru_hole circle (at 5.080 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 27 "ORP_OFF") (pinfunction "ORP_OFF") (pintype "passive") (uuid "b1c23f39-04bb-5a69-a089-d56b75cdbed8"))
   )
-  (footprint "BRMC:HDR_J_EC"
+  (footprint "HDR_J_EC"
     (layer "F.Cu")
     (uuid "acf462f1-5af9-5dbf-a1f5-c0995f380658")
     (at 175.000 68.000)
@@ -159,7 +159,7 @@
     (pad "4" thru_hole circle (at 2.540 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 4 "I2C_SDA") (pinfunction "I2C_SDA") (pintype "passive") (uuid "a3d80dce-f999-539b-b81c-0edb1d64da4f"))
     (pad "5" thru_hole circle (at 5.080 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 28 "EC_OFF") (pinfunction "EC_OFF") (pintype "passive") (uuid "27d4b006-23e0-5565-b12d-663254413fd8"))
   )
-  (footprint "BRMC:HDR_J_TEMP"
+  (footprint "HDR_J_TEMP"
     (layer "F.Cu")
     (uuid "a0f21c2c-e3e3-5ad7-a5e0-d24001674031")
     (at 202.000 68.000)
@@ -172,7 +172,7 @@
     (pad "3" thru_hole circle (at 1.270 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 22 "TEMP_DATA") (pinfunction "TEMP_DATA") (pintype "passive") (uuid "932cc524-5316-5666-9c33-3d0fa9f65da5"))
     (pad "4" thru_hole circle (at 3.810 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 29 "TEMP_AUX") (pinfunction "TEMP_AUX") (pintype "passive") (uuid "f2b4d38f-02e4-5208-a763-ebaedec411ea"))
   )
-  (footprint "BRMC:HDR_J_PWR"
+  (footprint "HDR_J_PWR"
     (layer "F.Cu")
     (uuid "30836542-55e6-596f-b069-b5b1a86bd993")
     (at 15.000 10.000)
@@ -187,7 +187,7 @@
     (pad "5" thru_hole circle (at 3.810 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 31 "12V_SYS") (pinfunction "12V_SYS") (pintype "passive") (uuid "2e3bae17-69e0-581a-9423-e7a619e982a1"))
     (pad "6" thru_hole circle (at 6.350 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "d256ccad-bbe2-5c55-a308-79bdd0b1aa48"))
   )
-  (footprint "BRMC:HDR_J_CAN"
+  (footprint "HDR_J_CAN"
     (layer "F.Cu")
     (uuid "05cee5bd-16ac-5be6-b674-b1e7e5ccf5a5")
     (at 52.000 10.000)
@@ -202,7 +202,7 @@
     (pad "5" thru_hole circle (at 3.810 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 32 "CAN_H") (pinfunction "CAN_H") (pintype "passive") (uuid "8a707956-1bc7-501e-b590-e6de4629f01a"))
     (pad "6" thru_hole circle (at 6.350 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 33 "CAN_L") (pinfunction "CAN_L") (pintype "passive") (uuid "c8735db4-45ea-5bf6-8965-a80b79634e72"))
   )
-  (footprint "BRMC:HDR_J_485"
+  (footprint "HDR_J_485"
     (layer "F.Cu")
     (uuid "4e7b5ae1-5f1f-5e5c-b290-1bf76a1d0223")
     (at 83.000 10.000)
@@ -218,7 +218,7 @@
     (pad "6" thru_hole circle (at 5.080 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 34 "RS485_A") (pinfunction "RS485_A") (pintype "passive") (uuid "da458db0-fed8-53b6-871a-5605f6e1fcc5"))
     (pad "7" thru_hole circle (at 7.620 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 35 "RS485_B") (pinfunction "RS485_B") (pintype "passive") (uuid "30960c1e-c0a2-5149-9e56-0e1be99b8eb5"))
   )
-  (footprint "BRMC:HDR_J_AO"
+  (footprint "HDR_J_AO"
     (layer "F.Cu")
     (uuid "8cb55e54-7f33-562a-890f-cebc6095326a")
     (at 120.000 10.000)
@@ -231,7 +231,7 @@
     (pad "3" thru_hole circle (at 1.270 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 34 "RS485_A") (pinfunction "RS485_A") (pintype "passive") (uuid "3deae5c2-1b6e-5627-878b-8d129c9649df"))
     (pad "4" thru_hole circle (at 3.810 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 35 "RS485_B") (pinfunction "RS485_B") (pintype "passive") (uuid "4bf33ce5-22ec-586b-bb84-8b9d4ba6be5e"))
   )
-  (footprint "BRMC:HDR_J_PWRMOD"
+  (footprint "HDR_J_PWRMOD"
     (layer "F.Cu")
     (uuid "d9ce6d8c-33c4-5b72-9f5e-08146c9f0104")
     (at 150.000 10.000)
@@ -248,7 +248,7 @@
     (pad "7" thru_hole circle (at 6.350 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 21 "SAFETY_ENABLE") (pinfunction "SAFETY_ENABLE") (pintype "passive") (uuid "49bdde5c-f238-5481-98bf-cfe09a4c6a58"))
     (pad "8" thru_hole circle (at 8.890 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "a6c8c2c5-4693-5770-a918-3b1cb81d3426"))
   )
-  (footprint "BRMC:HDR_J_SAFE"
+  (footprint "HDR_J_SAFE"
     (layer "F.Cu")
     (uuid "4958b174-1194-53a3-b2ad-7bbefbe7b327")
     (at 180.000 10.000)
@@ -261,7 +261,7 @@
     (pad "3" thru_hole circle (at 1.270 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 30 "24V_IN") (pinfunction "24V_IN") (pintype "passive") (uuid "3a1f0ff3-81a3-59fc-8fe1-9d27d6b3dcd1"))
     (pad "4" thru_hole circle (at 3.810 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "f0f4e0bc-e818-565f-bedb-c36aeb5c6584"))
   )
-  (footprint "BRMC:HDR_J_SVC"
+  (footprint "HDR_J_SVC"
     (layer "F.Cu")
     (uuid "2f8226b4-0660-51ee-9fce-e77d5c30fefd")
     (at 205.000 10.000)
@@ -278,7 +278,7 @@
     (pad "7" thru_hole circle (at 6.350 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 6 "CM5_RX") (pinfunction "CM5_RX") (pintype "passive") (uuid "cf24dbf6-505d-5ab0-b3fe-e5df6890bc9f"))
     (pad "8" thru_hole circle (at 8.890 0.000) (size 1.8 1.8) (drill 1.0) (layers "*.Cu" "*.Mask") (net 2 "GND") (pinfunction "GND") (pintype "passive") (uuid "4e9403bf-29b8-5799-88fa-a27cf3fe32df"))
   )
-  (footprint "BRMC:MOUNT_M3_H1"
+  (footprint "MOUNT_M3_H1"
     (layer "F.Cu")
     (uuid "116342e6-d56a-5822-9aea-77de9408026c")
     (at 7.000 7.000)
@@ -287,7 +287,7 @@
     (attr board_only exclude_from_pos_files)
     (pad "" np_thru_hole circle (at 0 0) (size 3.200 3.200) (drill 3.200) (layers "*.Cu" "*.Mask") (uuid "cdefb53d-94b3-58e7-9338-291ca3f49ec6"))
   )
-  (footprint "BRMC:MOUNT_M3_H2"
+  (footprint "MOUNT_M3_H2"
     (layer "F.Cu")
     (uuid "a11906bb-e381-5b12-8d14-5ea4e0620cc4")
     (at 110.000 7.000)
@@ -296,7 +296,7 @@
     (attr board_only exclude_from_pos_files)
     (pad "" np_thru_hole circle (at 0 0) (size 3.200 3.200) (drill 3.200) (layers "*.Cu" "*.Mask") (uuid "9872560c-e749-5f99-ae6f-95da4a1dcd94"))
   )
-  (footprint "BRMC:MOUNT_M3_H3"
+  (footprint "MOUNT_M3_H3"
     (layer "F.Cu")
     (uuid "faa7d1ad-88dc-5c5c-8a5c-2a9651b4969a")
     (at 213.000 7.000)
@@ -305,7 +305,7 @@
     (attr board_only exclude_from_pos_files)
     (pad "" np_thru_hole circle (at 0 0) (size 3.200 3.200) (drill 3.200) (layers "*.Cu" "*.Mask") (uuid "857ec148-159e-538c-af9f-8caf7aeb2ce0"))
   )
-  (footprint "BRMC:MOUNT_M3_H4"
+  (footprint "MOUNT_M3_H4"
     (layer "F.Cu")
     (uuid "f375f767-9211-556d-9999-7a725f60105a")
     (at 7.000 71.000)
@@ -314,7 +314,7 @@
     (attr board_only exclude_from_pos_files)
     (pad "" np_thru_hole circle (at 0 0) (size 3.200 3.200) (drill 3.200) (layers "*.Cu" "*.Mask") (uuid "89fb7e9a-3964-52a2-8e56-870fe1922152"))
   )
-  (footprint "BRMC:MOUNT_M3_H5"
+  (footprint "MOUNT_M3_H5"
     (layer "F.Cu")
     (uuid "1c221667-91a9-5300-93dd-888b184d00b0")
     (at 110.000 71.000)
@@ -323,7 +323,7 @@
     (attr board_only exclude_from_pos_files)
     (pad "" np_thru_hole circle (at 0 0) (size 3.200 3.200) (drill 3.200) (layers "*.Cu" "*.Mask") (uuid "b80a54c9-142d-5984-9b5a-85acf97cb2d7"))
   )
-  (footprint "BRMC:MOUNT_M3_H6"
+  (footprint "MOUNT_M3_H6"
     (layer "F.Cu")
     (uuid "f934cac6-3083-55e2-9699-461ebaea10a5")
     (at 213.000 71.000)
@@ -335,7 +335,7 @@
   (gr_rect (start 0 0) (end 220 78) (stroke (width 0.25) (type default)) (fill none) (layer "Edge.Cuts") (uuid "5e3faee0-3d56-55ec-a393-74c49c70fef2"))
   (gr_text "BRMC CONSUMER EVT v1.0" (at 110.000 75.000) (layer "F.SilkS") (uuid "9ccd5549-1e9f-5706-a7aa-d6b8cfa1590d") (effects (font (size 1.4 1.4) (thickness 0.18))))
   (gr_text "MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE" (at 110.000 3.000) (layer "F.SilkS") (uuid "883069d9-e32d-5fe9-a07e-ea3cb24d9219") (effects (font (size 1.0 1.0) (thickness 0.18))))
-  (gr_text "No mains voltage on PCB" (at 110.000 5.200) (layer "F.SilkS") (uuid "c43d3e76-5dec-5400-9386-fcabbabd7d82") (effects (font (size 0.9 0.9) (thickness 0.18))))
+  (gr_text "No mains voltage on PCB" (at 110.000 4.500) (layer "F.SilkS") (uuid "c43d3e76-5dec-5400-9386-fcabbabd7d82") (effects (font (size 0.9 0.9) (thickness 0.18))))
   (segment (start 16.110 66.730) (end 16.110 64.000) (width 0.2) (layer "In2.Cu") (net 1) (uuid "f805562a-2460-51b0-987a-a1cd65943486"))
   (segment (start 16.110 64.000) (end 16.110 18.900) (width 1.0) (layer "In2.Cu") (net 1) (uuid "69e996eb-42ea-54d0-a8c3-776cbf349200"))
   (segment (start 16.110 18.900) (end 15.010 18.900) (width 1.0) (layer "In2.Cu") (net 1) (uuid "74df1465-e5e3-5de8-aa2a-cbf4fbe55540"))
