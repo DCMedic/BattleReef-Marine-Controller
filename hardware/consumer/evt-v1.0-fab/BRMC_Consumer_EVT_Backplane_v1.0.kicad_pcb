@@ -363,7 +363,7 @@
   (gr_text "BRMC CONSUMER EVT v1.0" (at 110.000 75.000) (layer "F.SilkS") (uuid "939aea8a-2dd1-5e89-bf13-695e57c8a4b1") (effects (font (size 1.4 1.4) (thickness 0.18))))
   (gr_text "MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE" (at 70.000 3.000) (layer "F.SilkS") (uuid "8f9775b4-9a1c-5317-a554-1c61dd051fe5") (effects (font (size 1.0 1.0) (thickness 0.18))))
   (gr_text "No mains voltage on PCB" (at 70.000 4.500) (layer "F.SilkS") (uuid "45f898bf-ce0e-58fc-8a02-e85ef6bc20a4") (effects (font (size 0.9 0.9) (thickness 0.18))))
-  (gr_text "J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11" (at 35.000 60.500) (layer "F.SilkS") (uuid "d29a6fa5-0c02-5df0-a7e4-44d04b52bd61") (effects (font (size 0.8 0.8) (thickness 0.18))))
+  (gr_text "J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11" (at 50.000 60.500) (layer "F.SilkS") (uuid "d29a6fa5-0c02-5df0-a7e4-44d04b52bd61") (effects (font (size 0.8 0.8) (thickness 0.18))))
   (segment (start 18.650 66.730) (end 18.650 64.000) (width 0.2) (layer "In2.Cu") (net 2) (uuid "5ea7a89a-e514-5375-a790-da67bffe955a"))
   (segment (start 18.650 64.000) (end 18.650 25.825) (width 0.2) (layer "In2.Cu") (net 2) (uuid "4dd7d5de-f15f-53c7-aece-0c295a1bb668"))
   (segment (start 68.650 69.270) (end 69.900 69.270) (width 0.2) (layer "F.Cu") (net 2) (uuid "51c1cd2d-ed73-5a84-a6e0-cdfbeb4bccdd"))

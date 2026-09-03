@@ -295,7 +295,7 @@ b.add_header("J_SVC","MOLEX_22-23-2081_SERVICE_DEBUG",195,10,["3V3_SYS","GND","S
 # intent (three columns by two rows) in the 220 x 78 mm coordinate system.
 for ref,x,y in [("H1",7,7),("H2",110,7),("H3",213,7),("H4",7,71),("H5",110,71),("H6",213,71)]:
     b.add_mounting_hole(ref,x,y)
-b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",70,3,1.0); b.add_text("No mains voltage on PCB",70,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11",35,60.5,0.8)
+b.add_text("BRMC CONSUMER EVT v1.0",110,75,1.4); b.add_text("MODULAR PROTOTYPE BACKPLANE - NOT FOR SALE",70,3,1.0); b.add_text("No mains voltage on PCB",70,4.5,0.9); b.add_text("J_CM5 SIGNAL ONLY - CM5IO POWER VIA J11",50,60.5,0.8)
 b.route_bus(); b.write(OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pcb")
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro").write_text(json.dumps({"board":{},"boards":[],"cvpcb":{},"erc":{},"libraries":{},"meta":{"filename":"BRMC_Consumer_EVT_Backplane_v1.0.kicad_pro","version":1},"net_settings":{"classes":[]},"pcbnew":{},"schematic":{},"text_variables":{"PRODUCT":"BRMC Consumer","REV":"1.0-EVT"}},indent=2),encoding="utf-8")
 rows=[]
