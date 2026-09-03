@@ -8,6 +8,8 @@ This is an engineering EVT bare-board package for the module-interconnect backpl
 
 The connector footprints are embedded prototype header geometry. They are not substitutes for production MPN/footprint verification or an assembly BOM.
 
+Power nets use short 0.20 mm connector escape neck-downs where required by the 2.54 mm through-hole pitch, widen after leaving the connector field, and use the controlled 1.50 mm 24 V and 2.00 mm 5 V/GND trunks on B.Cu. These neck-downs remain subject to current/thermal review for the actual EVT module loads.
+
 ## Automated gates
 
 The GitHub workflow regenerates the committed KiCad sources, rejects source drift, runs KiCad 9 DRC, exports Gerber/drill/position/IPC-D-356/STEP outputs, verifies the output set and checksums every artifact. A successful run proves the checked backplane artifact passed those automated gates for that commit.

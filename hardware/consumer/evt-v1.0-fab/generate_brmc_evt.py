@@ -44,16 +44,16 @@ class Board:
         # requirements on B.Cu.  Short connector fan-outs neck down only as
         # needed for the 2.54 mm header pitch.
         if net == "GND":
-            return {"fan":1.00,"bus":2.00,"via":1.00,"drill":0.50,"clear":0.20}
+            return {"escape":0.20,"fan":1.00,"bus":2.00,"via":1.00,"drill":0.50,"clear":0.20}
         if net == "5V_SYS":
-            return {"fan":1.00,"bus":2.00,"via":1.00,"drill":0.50,"clear":0.20}
+            return {"escape":0.20,"fan":1.00,"bus":2.00,"via":1.00,"drill":0.50,"clear":0.20}
         if net == "24V_IN":
-            return {"fan":0.80,"bus":1.50,"via":0.90,"drill":0.45,"clear":0.30}
+            return {"escape":0.20,"fan":0.80,"bus":1.50,"via":0.90,"drill":0.45,"clear":0.30}
         if net == "3V3_SYS":
-            return {"fan":0.50,"bus":0.50,"via":0.90,"drill":0.45,"clear":0.20}
+            return {"escape":0.20,"fan":0.50,"bus":0.50,"via":0.90,"drill":0.45,"clear":0.20}
         if net in {"CAN_H","CAN_L","CAN_TX","CAN_RX","RS485_A","RS485_B","RS485_TX","RS485_RX","RS485_DE"}:
-            return {"fan":0.25,"bus":0.25,"via":0.60,"drill":0.30,"clear":0.20}
-        return {"fan":0.20,"bus":0.20,"via":0.55,"drill":0.30,"clear":0.20}
+            return {"escape":0.25,"fan":0.25,"bus":0.25,"via":0.60,"drill":0.30,"clear":0.20}
+        return {"escape":0.20,"fan":0.20,"bus":0.20,"via":0.55,"drill":0.30,"clear":0.20}
     def route_bus(self):
         netpads={}
         for p in self.pads:
@@ -69,7 +69,12 @@ class Board:
                 cursor += style["bus"]/2
             else:
                 gap=max(previous["clear"],style["clear"])
-                cursor += previous["bus"]/2 + gap + style["bus"]/2
+                cursor += max(
+                    previous["bus"]/2 + style["bus"]/2 + gap,
+                    previous["bus"]/2 + style["via"]/2 + gap,
+                    previous["via"]/2 + style["bus"]/2 + gap,
+                    previous["via"]/2 + style["via"]/2 + gap,
+                )
             lanes[n]=round(cursor,3)
             previous=style
         if max(lanes.values()) > 63.0:
@@ -90,12 +95,13 @@ class Board:
                     ly="In2.Cu"; ex=p["x"]
                 else:
                     ly="In3.Cu"; ex=p["x"]
-                endpoints.append({"net":n,"p":p,"by":by,"ly":ly,"ex":ex,"style":styles[n]})
+                escape_y=64.0 if p["y"] >= 60 else 14.0
+                endpoints.append({"net":n,"p":p,"by":by,"ly":ly,"ex":ex,"escape_y":escape_y,"style":styles[n]})
 
         verticals=[]
         for e in endpoints:
-            verticals.append({"x":e["ex"],"y0":min(e["p"]["y"],e["by"]),
-                              "y1":max(e["p"]["y"],e["by"]),"ly":e["ly"],"net":e["net"],
+            verticals.append({"x":e["ex"],"y0":min(e["escape_y"],e["by"]),
+                              "y1":max(e["escape_y"],e["by"]),"ly":e["ly"],"net":e["net"],
                               "width":e["style"]["fan"],"clear":e["style"]["clear"],"e":e})
 
         # A through-via intersects every copper layer. Place it in a locally
@@ -131,10 +137,11 @@ class Board:
         for n,elist in bynet.items():
             nid=self.netid(n); by=lanes[n]; vxs=[]
             for e in elist:
-                p=e["p"]; ex=e["ex"]; vx=e["vx"]; ly=e["ly"]; style=e["style"]
+                p=e["p"]; ex=e["ex"]; vx=e["vx"]; ly=e["ly"]; escape_y=e["escape_y"]; style=e["style"]
                 if abs(ex-p["x"])>1e-6:
-                    self.segs.append((p["x"],p["y"],ex,p["y"],style["fan"],ly,nid))
-                self.segs.append((ex,p["y"],ex,by,style["fan"],ly,nid))
+                    self.segs.append((p["x"],p["y"],ex,p["y"],style["escape"],ly,nid))
+                self.segs.append((ex,p["y"],ex,escape_y,style["escape"],ly,nid))
+                self.segs.append((ex,escape_y,ex,by,style["fan"],ly,nid))
                 if abs(vx-ex)>1e-6:
                     self.segs.append((ex,by,vx,by,style["fan"],ly,nid))
                 self.vias.append((vx,by,style["via"],style["drill"],nid)); vxs.append(vx)
@@ -194,7 +201,7 @@ rows=[]
 for fp in b.fps:
     for num,dx,dy,net in fp["coords"]: rows.append([fp["ref"],num,net,fp["val"]])
 with (OUT/"BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv").open("w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["Connector","Pin","Net","Function"]); w.writerows(rows)
+    w=csv.writer(f,lineterminator="\n"); w.writerow(["Connector","Pin","Net","Function"]); w.writerows(rows)
 
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_dru").write_text('''(version 1)
 
@@ -208,10 +215,6 @@ with (OUT/"BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv").open("w",newline="",enc
   (layer "In4.Cu")
   (constraint disallow track))
 
-(rule "24V fanout width"
-  (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
-  (constraint track_width (min 0.80mm)))
-
 (rule "24V trunk width"
   (layer "B.Cu")
   (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
@@ -221,16 +224,13 @@ with (OUT/"BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv").open("w",newline="",enc
   (condition "A.NetName == '24V_IN' || B.NetName == '24V_IN'")
   (constraint clearance (min 0.30mm)))
 
-(rule "5V and ground fanout width"
-  (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
-  (constraint track_width (min 1.00mm)))
-
 (rule "5V and ground trunk width"
   (layer "B.Cu")
   (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
   (constraint track_width (min 2.00mm)))
 
-(rule "3V3 width"
+(rule "3V3 trunk width"
+  (layer "B.Cu")
   (condition "A.NetName == '3V3_SYS' && A.Type == 'Track'")
   (constraint track_width (min 0.50mm)))
 

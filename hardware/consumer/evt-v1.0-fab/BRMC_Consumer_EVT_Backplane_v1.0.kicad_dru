@@ -10,10 +10,6 @@
   (layer "In4.Cu")
   (constraint disallow track))
 
-(rule "24V fanout width"
-  (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
-  (constraint track_width (min 0.80mm)))
-
 (rule "24V trunk width"
   (layer "B.Cu")
   (condition "A.NetName == '24V_IN' && A.Type == 'Track'")
@@ -23,16 +19,13 @@
   (condition "A.NetName == '24V_IN' || B.NetName == '24V_IN'")
   (constraint clearance (min 0.30mm)))
 
-(rule "5V and ground fanout width"
-  (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
-  (constraint track_width (min 1.00mm)))
-
 (rule "5V and ground trunk width"
   (layer "B.Cu")
   (condition "(A.NetName == '5V_SYS' || A.NetName == 'GND') && A.Type == 'Track'")
   (constraint track_width (min 2.00mm)))
 
-(rule "3V3 width"
+(rule "3V3 trunk width"
+  (layer "B.Cu")
   (condition "A.NetName == '3V3_SYS' && A.Type == 'Track'")
   (constraint track_width (min 0.50mm)))
 

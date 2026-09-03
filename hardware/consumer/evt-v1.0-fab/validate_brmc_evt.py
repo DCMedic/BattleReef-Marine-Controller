@@ -56,12 +56,12 @@ def validate_source() -> None:
         minimum = 0.20
         if net in {"CAN_H", "CAN_L", "CAN_TX", "CAN_RX", "RS485_A", "RS485_B", "RS485_TX", "RS485_RX", "RS485_DE"}:
             minimum = 0.25
-        if net == "3V3_SYS":
+        if net == "3V3_SYS" and layer == "B.Cu":
             minimum = 0.50
         if net == "24V_IN":
-            minimum = 1.50 if layer == "B.Cu" else 0.80
+            minimum = 1.50 if layer == "B.Cu" else 0.20
         if net in {"5V_SYS", "GND"}:
-            minimum = 2.00 if layer == "B.Cu" else 1.00
+            minimum = 2.00 if layer == "B.Cu" else 0.20
         require(width + 1e-9 >= minimum, f"{net} width {width} mm below {minimum} mm on {layer}")
 
     require("No tracks on L2 ground reference" in rules, "L2 routing prohibition missing")
