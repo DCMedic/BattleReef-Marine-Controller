@@ -170,8 +170,8 @@ class Board:
                 f'    (pad "" np_thru_hole circle (at 0 0) (size {q(hole["drill"])} {q(hole["drill"])}) (drill {q(hole["drill"])}) (layers "*.Cu" "*.Mask") (uuid "{uid()}"))',
                 '  )']
     def write(self,path):
-        layers='(layers\n  (0 "F.Cu" signal)\n  (2 "In1.Cu" power)\n  (4 "In2.Cu" power)\n  (6 "In3.Cu" signal)\n  (8 "In4.Cu" signal)\n  (31 "B.Cu" signal)\n  (36 "B.SilkS" user "B.Silkscreen")\n  (37 "F.SilkS" user "F.Silkscreen")\n  (38 "B.Mask" user)\n  (39 "F.Mask" user)\n  (44 "Edge.Cuts" user)\n  (46 "B.CrtYd" user "B.Courtyard")\n  (47 "F.CrtYd" user "F.Courtyard")\n  (48 "B.Fab" user)\n  (49 "F.Fab" user)\n)'
-        s=['(kicad_pcb','  (version 20240108)','  (generator "pcbnew")','  (generator_version "8.0")','  (general (thickness 1.6) (legacy_teardrops no))','  (paper "A4")','  (title_block (title "BRMC Consumer EVT Backplane") (date "2026-09-02") (rev "1.0-EVT") (company "BattleReef"))','  '+layers.replace('\n','\n  '),'  (setup (pad_to_mask_clearance 0) (allow_soldermask_bridges_in_footprints no))']
+        layers='(layers\n  (0 "F.Cu" signal)\n  (2 "In1.Cu" power)\n  (4 "In2.Cu" power)\n  (6 "In3.Cu" signal)\n  (8 "In4.Cu" power)\n  (31 "B.Cu" signal)\n  (36 "B.SilkS" user "B.Silkscreen")\n  (37 "F.SilkS" user "F.Silkscreen")\n  (38 "B.Mask" user)\n  (39 "F.Mask" user)\n  (44 "Edge.Cuts" user)\n  (46 "B.CrtYd" user "B.Courtyard")\n  (47 "F.CrtYd" user "F.Courtyard")\n  (48 "B.Fab" user)\n  (49 "F.Fab" user)\n)'
+        s=['(kicad_pcb','  (version 20240108)','  (generator "brmc_evt_generator")','  (generator_version "1.0")','  (general (thickness 1.6) (legacy_teardrops no))','  (paper "A4")','  (title_block (title "BRMC Consumer EVT Backplane") (date "2026-09-02") (rev "1.0-EVT") (company "BattleReef"))','  '+layers.replace('\n','\n  '),'  (setup (pad_to_mask_clearance 0) (allow_soldermask_bridges_in_footprints no))']
         for n,i in sorted(self.nets.items(),key=lambda kv:kv[1]): s.append(f'  (net {i} "{n}")')
         for fp in self.fps: s+=self._fp(fp)
         for hole in self.holes: s+=self._hole(hole)
@@ -179,6 +179,19 @@ class Board:
         for text,x,y,size in self.texts: s.append(f'  (gr_text "{text}" (at {x:.3f} {y:.3f}) (layer "F.SilkS") (uuid "{uid()}") (effects (font (size {size} {size}) (thickness 0.18))))')
         for x1,y1,x2,y2,w,ly,nid in self.segs: s.append(f'  (segment (start {x1:.3f} {y1:.3f}) (end {x2:.3f} {y2:.3f}) (width {w}) (layer "{ly}") (net {nid}) (uuid "{uid()}"))')
         for x,y,sz,dr,nid in self.vias: s.append(f'  (via (at {x:.3f} {y:.3f}) (size {sz}) (drill {dr}) (layers "F.Cu" "B.Cu") (net {nid}) (uuid "{uid()}"))')
+        # L2 and L5 are continuous GND reference planes. KiCad owns the
+        # thermal reliefs and clearance voids when it fills these zones.
+        for layer in ("In1.Cu", "In4.Cu"):
+            s += [f'  (zone (net {self.netid("GND")}) (net_name "GND") (layer "{layer}") (uuid "{uid()}") (hatch edge 0.5)',
+                  '    (connect_pads (clearance 0.30))',
+                  '    (min_thickness 0.25)',
+                  '    (fill yes (thermal_gap 0.30) (thermal_bridge_width 0.40))',
+                  '    (polygon',
+                  '      (pts',
+                  f'        (xy 0.5 0.5) (xy {self.w-0.5} 0.5) (xy {self.w-0.5} {self.h-0.5}) (xy 0.5 {self.h-0.5})',
+                  '      )',
+                  '    )',
+                  '  )']
         s.append(')'); Path(path).write_text('\n'.join(s),encoding='utf-8')
 b=Board("BRMC_EVT_Backplane",220,78)
 b.add_header("J_CM5","CM5_IO_HARNESS",25,68,["5V_SYS","GND","I2C_SCL","I2C_SDA","CM5_TX","CM5_RX","CM5_HEARTBEAT","SAFETY_ACK","SPI_SCK","SPI_MISO","SPI_MOSI","SPI_CS0","GPIO_AUX0","GPIO_AUX1","3V3_SYS","GND"],rows=2)
@@ -209,8 +222,8 @@ with (OUT/"BRMC_Consumer_EVT_Backplane_v1.0_Pinout.csv").open("w",newline="",enc
 
 (OUT/"BRMC_Consumer_EVT_Backplane_v1.0.kicad_dru").write_text('''(version 1)
 
-# Keep L2 and L5 free of routed tracks so reviewed GND pours can be added as
-# the two continuous reference layers in the controlled six-layer stackup.
+# Keep L2 and L5 free of routed tracks; only the generated GND zones belong on
+# these continuous reference layers in the controlled six-layer stackup.
 (rule "No tracks on L2 ground reference"
   (layer "In1.Cu")
   (constraint disallow track))

@@ -1,7 +1,7 @@
 (version 1)
 
-# Keep L2 and L5 free of routed tracks so reviewed GND pours can be added as
-# the two continuous reference layers in the controlled six-layer stackup.
+# Keep L2 and L5 free of routed tracks; only the generated GND zones belong on
+# these continuous reference layers in the controlled six-layer stackup.
 (rule "No tracks on L2 ground reference"
   (layer "In1.Cu")
   (constraint disallow track))

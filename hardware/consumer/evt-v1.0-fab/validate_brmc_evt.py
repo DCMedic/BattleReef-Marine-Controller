@@ -52,6 +52,16 @@ def validate_source() -> None:
     require(not any(layer in {"In1.Cu", "In4.Cu"} for _, layer, _ in segments),
             "tracks found on reserved L2/L5 ground-reference layers")
 
+    gnd_code = next((code for code, name in nets.items() if name == "GND"), None)
+    require(gnd_code is not None, "GND net is missing")
+    for layer in ("In1.Cu", "In4.Cu"):
+        marker = f'(zone (net {gnd_code}) (net_name "GND") (layer "{layer}")'
+        require(pcb.count(marker) == 1, f"expected one GND zone on {layer}")
+    require(pcb.count('(fill yes (thermal_gap 0.30) (thermal_bridge_width 0.40))') == 2,
+            "L2/L5 GND zones are not configured for fill")
+    require(pcb.count('(xy 0.5 0.5) (xy 219.5 0.5) (xy 219.5 77.5) (xy 0.5 77.5)') == 2,
+            "L2/L5 GND-zone boundaries do not cover the board")
+
     for width, layer, net in segments:
         minimum = 0.20
         if net in {"CAN_H", "CAN_L", "CAN_TX", "CAN_RX", "RS485_A", "RS485_B", "RS485_TX", "RS485_RX", "RS485_DE"}:
@@ -124,6 +134,11 @@ def validate_fabrication(fab: Path) -> None:
     require(len(copper) == 6, f"expected six copper Gerbers, found {len(copper)}")
     for entry in job["FilesAttributes"]:
         read(fab / "gerbers" / entry["Path"])
+
+    for filename in (f"{STEM}-In1_Cu.g1", f"{STEM}-In4_Cu.g4"):
+        plane = read(fab / "gerbers" / filename)
+        require("G36*" in plane and "%TO.N,GND*%" in plane,
+                f"continuous GND plane geometry missing from {filename}")
 
     pth = read(fab / "drill" / f"{STEM}-PTH.drl")
     npth = read(fab / "drill" / f"{STEM}-NPTH.drl")

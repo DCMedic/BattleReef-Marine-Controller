@@ -1,7 +1,7 @@
 (kicad_pcb
   (version 20240108)
-  (generator "pcbnew")
-  (generator_version "8.0")
+  (generator "brmc_evt_generator")
+  (generator_version "1.0")
   (general (thickness 1.6) (legacy_teardrops no))
   (paper "A4")
   (title_block (title "BRMC Consumer EVT Backplane") (date "2026-09-02") (rev "1.0-EVT") (company "BattleReef"))
@@ -10,7 +10,7 @@
     (2 "In1.Cu" power)
     (4 "In2.Cu" power)
     (6 "In3.Cu" signal)
-    (8 "In4.Cu" signal)
+    (8 "In4.Cu" power)
     (31 "B.Cu" signal)
     (36 "B.SilkS" user "B.Silkscreen")
     (37 "F.SilkS" user "F.Silkscreen")
@@ -679,4 +679,24 @@
   (via (at 91.220 31.100) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net 35) (uuid "096b07b7-cbbe-52a4-a011-e52ad29854c8"))
   (via (at 123.810 31.100) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net 35) (uuid "364fb120-7389-5f05-88a3-1105680ba518"))
   (via (at 153.810 31.100) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net 35) (uuid "93dd4f32-3478-587f-b7f7-534c44bc2cb7"))
+  (zone (net 2) (net_name "GND") (layer "In1.Cu") (uuid "cb563e90-f720-598e-9a8a-6ed35637c514") (hatch edge 0.5)
+    (connect_pads (clearance 0.30))
+    (min_thickness 0.25)
+    (fill yes (thermal_gap 0.30) (thermal_bridge_width 0.40))
+    (polygon
+      (pts
+        (xy 0.5 0.5) (xy 219.5 0.5) (xy 219.5 77.5) (xy 0.5 77.5)
+      )
+    )
+  )
+  (zone (net 2) (net_name "GND") (layer "In4.Cu") (uuid "5f3be915-bd6f-5de9-8f1f-692c7732cc6b") (hatch edge 0.5)
+    (connect_pads (clearance 0.30))
+    (min_thickness 0.25)
+    (fill yes (thermal_gap 0.30) (thermal_bridge_width 0.40))
+    (polygon
+      (pts
+        (xy 0.5 0.5) (xy 219.5 0.5) (xy 219.5 77.5) (xy 0.5 77.5)
+      )
+    )
+  )
 )
