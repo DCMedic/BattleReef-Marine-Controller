@@ -162,7 +162,7 @@ class Board:
             self.segs.append((min(vxs),by,max(vxs),by,style["bus"],"B.Cu",nid))
     def _fp(self,fp):
         q=lambda v:f'{v:.3f}'
-        ref_y=-5.0 if fp["y"] >= 60 else 5.0
+        ref_y=-6.0 if fp["ref"] == "J_CM5" else (-5.0 if fp["y"] >= 60 else 5.0)
         body_layer="F.Fab" if fp["y"] < 20 and (fp["x"] < 25 or fp["x"] > 195) else "F.SilkS"
         out=[f'  (footprint "HDR_{fp["ref"]}"','    (layer "F.Cu")',f'    (uuid "{uid()}")',f'    (at {q(fp["x"])} {q(fp["y"])})',
              f'    (property "Reference" "{fp["ref"]}" (at 0 {q(ref_y)} 0) (layer "F.SilkS") (uuid "{uid()}") (effects (font (size 1 1) (thickness 0.15))))',
